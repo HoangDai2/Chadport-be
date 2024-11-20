@@ -9,25 +9,38 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up(): void
+    public function up()
     {
         Schema::table('products', function (Blueprint $table) {
-            $table->unsignedBigInteger('col_id')->nullable(); 
-            $table->unsignedBigInteger('size_id')->nullable(); ;
-            
-            $table->foreign('col_id')->references('id')->on('colors')->onDelete('cascade');
-            $table->foreign('size_id')->references('id')->on('sizes')->onDelete('cascade');
+            // Kiểm tra và thêm cột `col_id` nếu chưa tồn tại
+            if (!Schema::hasColumn('products', 'col_id')) {
+                $table->unsignedBigInteger('col_id')->nullable();
+                $table->foreign('col_id')->references('id')->on('colors')->onDelete('cascade');
+            }
+    
+            // Kiểm tra và thêm cột `size_id` nếu chưa tồn tại
+            if (!Schema::hasColumn('products', 'size_id')) {
+                $table->unsignedBigInteger('size_id')->nullable();
+                $table->foreign('size_id')->references('id')->on('sizes')->onDelete('cascade');
+            }
         });
     }
-
-    /**
-     * Reverse the migrations.
-     */
-    public function down(): void
+    
+    public function down()
     {
         Schema::table('products', function (Blueprint $table) {
-            $table->dropColumn('col_id');
-            $table->dropColumn('size_id');
+            // Xóa cột `col_id` nếu tồn tại
+            if (Schema::hasColumn('products', 'col_id')) {
+                $table->dropForeign(['col_id']);
+                $table->dropColumn('col_id');
+            }
+    
+            // Xóa cột `size_id` nếu tồn tại
+            if (Schema::hasColumn('products', 'size_id')) {
+                $table->dropForeign(['size_id']);
+                $table->dropColumn('size_id');
+            }
         });
     }
+    
 };

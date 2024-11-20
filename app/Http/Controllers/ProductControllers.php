@@ -50,7 +50,7 @@ class ProductControllers extends Controller
 
 
         $data = $validated;
-
+        $imagePaths = [];
         // Lưu ảnh chính của sản phẩm
         if ($request->hasFile('image_product')) {
             $imageProductPath = $request->file('image_product')->store('images', 'public');

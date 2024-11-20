@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Cart_item;
 use App\Models\Product;
 use App\Models\Voucher;
 use Database\Seeders\Voucher_usedSeeder;
@@ -16,84 +17,98 @@ class CartController extends Controller
     public $cart;
     public $voucher;
 
-    public function __construct()
-    {
-        $this->middleware(function ($request, $next) {
-            $this->cart = \Session::get('cart');
-            $this->voucher = \Session::get('voucher');
-            return $next($request);
-        });
-    }
+    // public function __construct()
+    // {
+    //     $this->middleware(function ($request, $next) {
+    //         $this->cart = \Session::get('cart');
+    //         $this->voucher = \Session::get('voucher');
+    //         return $next($request);
+    //     });
+    // }
 
-    public function add_to_cart(Request $request)
+    public function addToCart(Request $request)
     {
         try {
-            $product_id = $request->product_id;
-            $dataProduct = Product::find($product_id);
-            if (!$dataProduct) {
-                return response()->json(['message' => 'Sản phẩm không tồn tại'], 404);
+            // Xác thực request
+            $request->validate([
+                'product_id' => 'required|integer|exists:products,id',
+                'quantity' => 'required|integer|min:1',
+            ]);
+
+            // Lấy user đã đăng nhập
+            $user = auth()->user();
+            if (!$user) {
+                return response()->json(['message' => 'Bạn cần đăng nhập để thêm sản phẩm vào giỏ hàng'], 401);
             }
 
-            $cart = $this->cart ?? [];
-            $checkIsset = false;
+            // Lấy thông tin sản phẩm
+            $product = Product::find($request->product_id);
+            if (!$product || $product->quantity < $request->quantity) {
+                return response()->json(['message' => 'Sản phẩm không đủ số lượng'], 400);
+            }
+            // dd($product);
+            // Lấy hoặc tạo giỏ hàng cho user
+            $cart = Cart_item::firstOrCreate(
+                ['user_id' => $user->id], // Điều kiện để tìm
+                ['created_at' => now(), 'updated_at' => now()] // Nếu không tồn tại, sẽ tạo mới
+            );
 
-            foreach ($cart as $key => $val) {
-                if ($val['product_id'] == $product_id) {
-                    $quantity = $val['product_quantity'] + 1;
+            // Kiểm tra xem sản phẩm đã tồn tại trong giỏ chưa
+            $cartItem = Cart_item::where('cart_id', $cart->id)
+                ->where('product_id', $product->id)
+                ->first();
 
-                    if ($quantity <= $dataProduct->quantity) {
-                        $cart[$key]['product_quantity'] = $quantity;
-                        $cart[$key]['cart_amount_sale'] = $cart[$key]['cart_price_sale'] ? $cart[$key]['cart_price_sale'] * $quantity : $cart[$key]['cart_price'] * $quantity;
-                        $cart[$key]['cart_amount'] = $cart[$key]['cart_price'] * $quantity;
-                    } else {
-                        return response()->json(['message' => 'Số lượng sản phẩm đã đến mức tối đa. Bạn không thể thêm vào giỏ nữa'], 400);
-                    }
+            if ($cartItem) {
+                // Nếu đã tồn tại, cập nhật số lượng và giá
+                $newQuantity = $cartItem->quantity + $request->quantity;
 
-                    $checkIsset = true;
+                if ($newQuantity > $product->quantity) {
+                    return response()->json(['message' => 'Số lượng sản phẩm đã đạt mức tối đa'], 400);
                 }
+
+                $cartItem->update([
+                    'quantity' => $newQuantity,
+                    'price' => $product->price * $newQuantity,
+                ]);
+            } else {
+                // Nếu chưa tồn tại, thêm sản phẩm mới vào giỏ
+                Cart_item::create([
+                    'cart_id' => $cart->id,
+                    'user_id' => $user->id, // Đảm bảo user_id luôn được gán
+                    'product_id' => $product->id,
+                    'quantity' => $request->quantity,
+                    'price' => $product->price * $request->quantity,
+                ]);
             }
 
-            if (!$checkIsset) {
-                if ($request->cart_quantity <= $dataProduct->quantity) {
-                    $cart[] = [
-                        'product_id' => $product_id,
-                        'cart_product' => $dataProduct->pro_name,
-                        'cart_price' => $dataProduct->price,
-                        'cart_price_sale' => $dataProduct->price_sale,
-                        'cart_amount' => $dataProduct->price * $request->cart_quantity,
-                        'cart_amount_sale' => $dataProduct->price_sale ? $dataProduct->price_sale * $request->cart_quantity : $dataProduct->price * $request->cart_quantity,
-                        'product_quantity' => $request->cart_quantity,
-                    ];
-                } else {
-                    return response()->json(['message' => 'Số lượng sản phẩm đã đến mức tối đa. Bạn không thể thêm vào giỏ nữa'], 400);
-                }
-            }
-
-            $this->updateTotalPrice();
-            \Session::put('cart', $cart);
-
-            \Session::save();
-            
-            return response()->json(['message' => 'Thêm sản phẩm vào giỏ hàng thành công', 'cart' => $cart], 200);
+            return response()->json([
+                'message' => 'Thêm sản phẩm vào giỏ hàng thành công',
+            ], 200);
         } catch (\Exception $e) {
-            Log::error('Error adding product to cart: ' . $e->getMessage());
-
-            return response()->json(['message' => 'Đã xảy ra lỗi khi thêm sản phẩm vào giỏ hàng. Vui lòng thử lại sau.'], 500);
+            Log::error('Error adding to cart: ' . $e->getMessage());
+            return response()->json(['message' => 'Đã xảy ra lỗi. Vui lòng thử lại sau.'], 500);
         }
     }
 
 
-    public function get_cart()
+
+    public function get_cart($cartId)
     {
-        $this->updateTotalPrice();
-        $data_cart = \Session::get('cart', []);
-        $total_cart = \Session::get('total_cart', []);
-        $total_voucher_cart = \Session::get('total_voucher_cart', []);
+        // Lấy các mục giỏ hàng và thông tin liên quan
+        $cartItems = Cart_item::with('productVariant')
+            ->where('cart_id', $cartId)
+            ->get();
+    
+        // Tính tổng giá trị giỏ hàng
+        $totalPrice = $cartItems->sum(function ($item) {
+            return $item->quantity * $item->price;
+        });
+    
+        // Trả về JSON
         return response()->json([
-            'message' => 'Giỏ hàng khách hàng.',
-            'cart' => $data_cart,
-            'total_cart' => $total_cart,
-            'total_voucher_cart' => $total_voucher_cart
+            'message' => 'Danh sách các mục trong giỏ hàng.',
+            'cart_items' => $cartItems,
+            'total_price' => $totalPrice,
         ], 200);
     }
 
