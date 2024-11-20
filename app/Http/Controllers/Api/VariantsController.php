@@ -6,79 +6,73 @@ use App\Http\Controllers\Controller;
 use App\Models\ProductVariant;
 use Illuminate\Http\Request;
 
-class VariantController extends Controller
+class VariantsController extends Controller
 {
+    // Tạo mới variant chỉ với size, color và quantity
+    public function create(Request $request)
+    {
+        $request->validate([
+            'size_id' => 'required|exists:sizes,id',
+            'col_id' => 'required|exists:colors,id',
+            'quantity' => 'required|integer',
+        ]);
+
+        $variant = new ProductVariant();
+        $variant->size_id = $request->size_id;
+        $variant->col_id = $request->col_id;
+        $variant->quantity = $request->quantity;
+        $variant->save();
+
+        return response()->json([
+            'message' => 'Variant created successfully!',
+            'data' => $variant
+        ], 201);
+    }
+
     // Lấy thông tin variant theo ID
     public function show($id)
     {
-        $variant = ProductVariant::find($id);
-
-        if (!$variant) {
-            return response()->json(['message' => 'Variant not found'], 404);
-        }
-
-        return response()->json(['data' => $variant], 200);
+        $variant = ProductVariant::findOrFail($id);
+        return response()->json($variant);
     }
-
-    // Tạo mới variant
-    public function creates(Request $request)
-{
-    $validated = $request->validate([
-        'product_id' => 'required|exists:products,id', // Validate product_id
-        'size_id' => 'required|exists:sizes,id',
-        'color_id' => 'required|exists:colors,id',
-        'quatity' => 'required|integer|min:1',
-    ]);
-
-    $variant = ProductVariant::create([
-        'product_id' => $request->input('product_id'), // Lưu product_id
-        'size_id' => $request->input('size_id'),
-        'color_id' => $request->input('color_id'),
-        'quatity' => $request->input('quatity'),
-    ]);
-
-    return response()->json(['data' => $variant], 201);
-}
 
     // Lấy tất cả variants
-    public function GetAll(Request $request)
-    {
-        $variants = ProductVariant::with(['size', 'color'])->get();
+    public function index()
+{
+    $variants = ProductVariant::with(['size', 'color'])->get();
+    return response()->json($variants);
+}
 
-        return response()->json([
-            'data' => $variants
-        ], 200);
-    }
 
     // Cập nhật variant
-    public function updates(Request $request, string $id)
+    public function update(Request $request, $id)
     {
-        $validated = $request->validate([
+        $request->validate([
             'size_id' => 'required|exists:sizes,id',
-            'color_id' => 'required|exists:colors,id',
-            'quatity' => 'required|integer',
+            'col_id' => 'required|exists:colors,id',
+            'quantity' => 'required|integer',
         ]);
 
-        if ($validated) {
-            $variant = ProductVariant::where('id', $id)->update([
-                'size_id' => $request->input('size_id'),
-                'color_id' => $request->input('color_id'),
-                'quatity' => $request->input('quatity'),
-            ]);
-        }
+        $variant = ProductVariant::findOrFail($id);
+        $variant->size_id = $request->size_id;
+        $variant->col_id = $request->col_id;
+        $variant->quantity = $request->quantity;
+        $variant->save();
 
         return response()->json([
+            'message' => 'Variant updated successfully!',
             'data' => $variant
-        ], 200);
+        ]);
     }
 
     // Xóa variant
-    public function destroy(Request $request, string $id)
+    public function destroy($id)
     {
-        $variant = ProductVariant::where('id', $id)->delete();
+        $variant = ProductVariant::findOrFail($id);
+        $variant->delete();
 
         return response()->json([
-            'message' => 'Variant deleted successfully'
-        ], 200);
+            'message' => 'Variant deleted successfully!'
+        ]);
     }
 }

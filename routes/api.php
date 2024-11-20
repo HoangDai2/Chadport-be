@@ -14,7 +14,7 @@ use App\Http\Controllers\ProductControllers;
 use App\Http\Controllers\CommentsController;
 use App\Http\Controllers\Api\ColorController;
 use App\Http\Controllers\Api\SizeController;
-use App\Http\Controllers\Api\VariantController;
+use App\Http\Controllers\Api\VariantsController;
 
 
 // Group admin routes
@@ -90,11 +90,12 @@ Route::delete('/sizes/{id}', [SizeController::class, 'destroy']);
 
 
 // Variant routes
-Route::post('products/{productId}/variants', [VariantController::class, 'creates']); // Route để tạo mới variant
-Route::get('variants/{id}', [VariantController::class, 'show']); // Route để lấy thông tin variant theo ID
-Route::get('products/{productId}/variants', [VariantController::class, 'GetAll']); // Route để lấy tất cả variants
-Route::put('variants/{id}', [VariantController::class, 'updates']); // Route để cập nhật variant
-Route::delete('variants/{id}', [VariantController::class, 'destroy']); // Route để xóa variant
+Route::post('variants', [VariantsController::class, 'create']); // Tạo mới variant chỉ với size, color và quantity
+Route::get('variants/{id}', [VariantsController::class, 'show']); // Lấy thông tin variant theo ID
+Route::get('variants', [VariantsController::class, 'index']); // Lấy tất cả variants
+Route::put('variants/{id}', [VariantsController::class, 'update']); // Cập nhật variant theo ID
+Route::delete('variants/{id}', [VariantsController::class, 'destroy']); // Xóa variant theo ID
+
 
 
 
