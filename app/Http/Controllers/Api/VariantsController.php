@@ -11,24 +11,27 @@ class VariantsController extends Controller
     // Tạo mới variant chỉ với size, color và quantity
     public function create(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
+            'product_id' => 'required|exists:products,id', // Ensure that the product exists
             'size_id' => 'required|exists:sizes,id',
             'col_id' => 'required|exists:colors,id',
             'quantity' => 'required|integer',
         ]);
-
-        $variant = new ProductVariant();
-        $variant->size_id = $request->size_id;
-        $variant->col_id = $request->col_id;
-        $variant->quantity = $request->quantity;
-        $variant->save();
-
+    
+        // Create the variant and associate it with the selected product, size, and color
+        $variant = ProductVariant::create([
+            'product_id' => $validated['product_id'],  // Ensure product_id is included
+            'size_id' => $validated['size_id'],
+            'col_id' => $validated['col_id'],
+            'quantity' => $validated['quantity'],
+        ]);
+    
         return response()->json([
             'message' => 'Variant created successfully!',
-            'data' => $variant
-        ], 201);
+            'data' => $variant,
+        ]);
     }
-
+    
     // Lấy thông tin variant theo ID
     public function show($id)
     {
