@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\SizeController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\VariantController;
 use App\Http\Controllers\Api\VoucherController;
+use App\Http\Controllers\Api\PaymentController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProductControllers;
@@ -52,6 +53,9 @@ Route::group(['prefix' => 'user'], function () {
         Route::post('/payment', [CartController::class, 'payment']);
         Route::post('/remove-voucher', [CartController::class, 'removeVoucher']);
     }); 
+
+    //Payment Vnpay
+    Route::post('/create_paymentVnPay', [PaymentController::class, 'paymentVnPay']);
 });
 
 // Product routes
@@ -105,3 +109,6 @@ Route::post('add/comments', [CommentsController::class, 'createComments']);
 Route::get('getall/comments/{product_id}', [CommentsController::class, 'getCommentsByProduct']);
 Route::delete('delete/comments/{comment_id}', [CommentsController::class, 'deleteComment']);
 
+
+
+Route::get('/return_paymentVnPay', [PaymentController::class, 'returnPaymentVnPay']);
