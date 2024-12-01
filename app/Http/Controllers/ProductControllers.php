@@ -4,8 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\Category;
-use App\Models\ProductItems;
-use App\Models\ProductVariant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -14,101 +12,73 @@ class ProductControllers extends Controller
 {
     public function createProducts(Request $request)
     {
-        // Lấy các dữ liệu đầu vào
+        // Lấy các dữ liệu đầu vào trừ image_description
         $data = $request->only([
-            'category_id',
+            'cat_id',
             'title',
             'name',
             'status',
+            'col_id',
+            'size_id',
+            'brand_id',
             'description',
             'quantity',
             'image_product',
             'price',
             'price_sale',
             'type',
-            'total_quatity',
-            'variants'
         ]);
-    
-        // Xác thực dữ liệu đầu vào
+
+        // Xác thực dữ liệu đầu vào, bao gồm các ảnh trong image_description
         $validated = $request->validate([
-            'category_id' => 'required|exists:categories,id',
+            'cat_id' => 'required|exists:categories,id',
             'title' => 'required|max:255',
             'name' => 'required|max:500',
             'status' => 'required|in:active,inactive',
+            'col_id' => 'nullable|exists:colors,id',
+            'size_id' => 'nullable|exists:sizes,id',
+            'brand_id' => 'nullable|exists:brands,id', // Trường này là optional
             'description' => 'nullable|string',
-            'quantity' => 'nullable|integer|min:0',
+            'quantity' => 'required|integer|min:0',
             'image_product' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'image_description' => 'nullable|array',
             'image_description.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'price' => 'required|numeric|min:0',
-            'price_sale' => 'nullable|numeric|min:0|',
-            'total_quatity' => 'nullable|integer|min:0',
+            'price_sale' => 'nullable|numeric|min:0',
             'type' => 'nullable|string|max:50',
-            'variants' => 'required|string' // Dữ liệu `variants` được yêu cầu là chuỗi JSON
         ]);
-    
-        // Giải mã phần `variants`
-        $decodedVariants = json_decode($validated['variants'], true);
-    
-        if (!is_array($decodedVariants)) {
-            return response()->json(['message' => 'Invalid format for variants'], 422);
-        }
-    
-        // Chuyển giá sản phẩm và giá giảm giá thành số nguyên (VND)
-        $price = intval($validated['price']); // Làm tròn giá gốc thành số nguyên
-        $priceSale = isset($validated['price_sale']) ? intval($validated['price_sale']) : 0; // Làm tròn giá giảm giá thành số nguyên
 
-        // Kiểm tra nếu giá giảm lớn hơn giá gốc, trả lỗi
-        if ($priceSale > $price) {
-            return response()->json(['message' => 'Price sale cannot be greater than the original price'], 422);
-        }
 
+        $data = $validated;
+        $imagePaths = [];
         // Lưu ảnh chính của sản phẩm
         if ($request->hasFile('image_product')) {
             $imageProductPath = $request->file('image_product')->store('images', 'public');
-            $data['image_product'] = $imageProductPath;
+            $data['image_product'] = $imageProductPath; // Lưu đường dẫn ảnh chính
         }
-    
+
         // Xử lý việc upload các file và lưu đường dẫn vào mảng
         if ($request->hasFile('image_description')) {
-            $imagePaths = [];
+            $imagePaths = [];  // Khởi tạo mảng để lưu đường dẫn
             foreach ($request->file('image_description') as $file) {
                 $path = $file->store('images', 'public');
-                $imagePaths[] = $path;
+                $imagePaths[] = $path; // Thêm đường dẫn ảnh vào mảng
+                Log::info($file->getClientMimeType());
             }
-            $data['image_description'] = json_encode($imagePaths);
+            $data['image_description'] = json_encode($imagePaths);  // Lưu đường dẫn ảnh dưới dạng JSON
         }
-    
-        // Gán giá trị mặc định cho `total_quantity` nếu không được truyền
-        $data['total_quatity'] = $data['total_quatity'] ?? 0;
-        $data['price'] = $price; // Gán giá trị cho `price`
-        $data['price_sale'] = $priceSale; // Gán giá trị cho `price_sale`
+
 
         // Tạo sản phẩm mới sau khi đã xử lý và xác thực dữ liệu
         $product = Product::create($data);
-    
-        // Xử lý lưu biến thể với nhiều size và color
-        foreach ($decodedVariants as $variantData) {
-            foreach ($variantData['size_id'] as $sizeId) {
-                foreach ($variantData['color_id'] as $colorId) {
-                    ProductItems::create([
-                        'product_id' => $product->id,
-                        'size_id' => $sizeId,
-                        'color_id' => $colorId,
-                        'quantity' => $variantData['quantity'],
-                        'type' => $variantData['type'] ?? null,
-                    ]);
-                }
-            }
-        }
-    
+
         return response()->json([
-            'data' => $product->load(['productItems.size', 'productItems.color']),
-            'message' => 'Product and variants created successfully'
+            'data' => $product,
+            'imagePaths' => $imagePaths, // Log để kiểm tra
+            'message' => 'Product created with images successfully'
         ], 201);
     }
-    
+
     public function showProduct(Request $request)
     {
         // Số lượng sản phẩm hiển thị trên mỗi trang
@@ -144,22 +114,53 @@ class ProductControllers extends Controller
         ], 200);
     }
 
+
+
+
     // Phương thức để lấy thông tin chi tiết của sản phẩm theo ID
     public function showDetail($id)
     {
         // Tìm Product theo ID và eager load các quan hệ: variants, size, color
-        $product = Product::with('variants.size', 'variants.color')->find($id);
+
+        $product = Product::with(['variants.size', 'variants.color'])->find($id);
 
         // Nếu sản phẩm không tồn tại, trả về lỗi 404
         if (!$product) {
             return response()->json(['message' => 'Product not found'], 404);
         }
 
-        // Trả về thông tin sản phẩm dưới dạng JSON
+
+        // Xử lý nhóm dữ liệu variants theo size
+        $groupedVariants = [];
+        foreach ($product->variants as $variant) {
+            $sizeName = $variant->size->name ?? 'Unknown';
+            $colorInfo = [
+                'color_id' => $variant->color->id ?? null,
+                'name' => $variant->color->name ?? null,
+                'hex' => $variant->color->hex ?? null,
+            ];
+
+            // Nhóm color theo size
+            if (!isset($groupedVariants[$sizeName])) {
+                $groupedVariants[$sizeName] = [
+                    'size_id' => $variant->size_id,
+                    'size_name' => $sizeName,
+                    'colors' => [],
+                ];
+            }
+            $groupedVariants[$sizeName]['colors'][] = $colorInfo;
+        }
+
+        // Chuyển mảng thành danh sách có chỉ số
+        $groupedVariants = array_values($groupedVariants);
+
+        // Thêm dữ liệu đã nhóm vào product
+        $product->grouped_variants = $groupedVariants;
+
+        // Trả về thông tin sản phẩm cùng danh sách kích thước và màu sắc
         return response()->json($product);
     }
 
-    
 
     public function updateProduct(Request $request, $id)
     {
@@ -185,7 +186,7 @@ class ProductControllers extends Controller
                 'color' => 'nullable|string|max:20',
             ]);
 
-            
+
             // Lấy dữ liệu đầu vào từ yêu cầu
             $data = $validated;
             // Lưu ảnh chính của sản phẩm
@@ -199,7 +200,7 @@ class ProductControllers extends Controller
                     $data['image_product'] = $existingProduct->image_product; // Giữ lại ảnh cũ
                 }
             }
-            
+
 
 
             // Xử lý upload các file hình ảnh mô tả nếu có
@@ -297,13 +298,13 @@ class ProductControllers extends Controller
     }
 
     public function showProductById($id)
-{
-    $product = Product::find($id); // Tìm sản phẩm theo id
+    {
+        $product = Product::find($id); // Tìm sản phẩm theo id
 
-    if (!$product) {
-        return response()->json(['message' => 'Product not found'], 404); // Nếu không tìm thấy sản phẩm
+        if (!$product) {
+            return response()->json(['message' => 'Product not found'], 404); // Nếu không tìm thấy sản phẩm
+        }
+
+        return response()->json(['data' => $product], 200); // Trả về sản phẩm tìm thấy
     }
-
-    return response()->json(['data' => $product], 200); // Trả về sản phẩm tìm thấy
-}
 }
