@@ -44,6 +44,9 @@ Route::group(['prefix' => 'user'], function () {
         Route::post('/logout', [UserController::class, 'logout']);
         Route::post('/refresh', [UserController::class, 'refresh']);
         Route::post('/add_to_cart', [CartController::class, 'addToCart']);
+        Route::post('/checkcart', [CartController::class, 'moveToCheckout']);
+        Route::get('/getcheckcart', [CartController::class, 'Getcheckout']);
+        Route::post('/updatecheckcart', [CartController::class, 'updatechecked']);
         Route::get('/cart', [CartController::class, 'get_cart']);
         Route::delete('/delete_product_cart', [CartController::class, 'deleteProductCart']);
         Route::post('/update_quatity_cart', [CartController::class, 'updateQuantityCart']);
