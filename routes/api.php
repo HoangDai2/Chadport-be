@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProductControllers;
 use App\Http\Controllers\CommentsController;
+use App\Http\Controllers\NewAddressController;
 
 // Group admin routes
 Route::group(['prefix' => 'admin'], function () {
@@ -54,6 +55,8 @@ Route::group(['prefix' => 'user'], function () {
         Route::post('/add-coupon-cart', [CartController::class, 'addCouponCart']);
         Route::post('/payment', [CartController::class, 'payment']);
         Route::post('/remove-voucher', [CartController::class, 'removeVoucher']);
+        Route::post('/addadress', [NewAddressController::class, 'addAddress']);
+        Route::get('/getadress', [NewAddressController::class, 'get_NewAddress']);
     }); 
 
     //Payment Vnpay
