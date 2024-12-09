@@ -22,4 +22,18 @@ class OrderDetail extends Model
     public function Order() {
         return $this->belongsTo(Order::class);
     }
+    
+    public function ProductItem() {
+        return $this->belongsTo(ProductItems::class);
+    }
+
+    public function size()
+    {
+        return $this->belongsTo(Size::class, 'size_id');
+    }
+
+    public function color()
+    {
+        return $this->belongsTo(Color::class, 'color_id');
+    }
 }
