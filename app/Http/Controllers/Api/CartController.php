@@ -378,34 +378,61 @@ class CartController extends Controller
         DB::beginTransaction();
         try {
             $user_id = auth()->id();
-    
+
+            // Lấy giỏ hàng của người dùng với trạng thái "đang sử dụng"
             $cart = Cart::where('user_id', $user_id)->where('status', 'đang sử dụng')->first();
-    
+
             if (!$cart) {
                 return response()->json(['message' => 'Giỏ hàng không hợp lệ.'], 400);
             }
-    
-            $data_cart_items = Cart_item::where('cart_id', $cart->id)->get();
 
+            // Lọc các sản phẩm có trạng thái checked = 1
+            $data_cart_items = Cart_item::where('cart_id', $cart->id)
+                                        ->where('checked', 1)
+                                        ->get();
+
+            if ($data_cart_items->isEmpty()) {
+                return response()->json(['message' => 'Không có sản phẩm nào được chọn để thanh toán.'], 400);
+            }
+
+            // Tính tổng tiền chỉ cho các sản phẩm đã được chọn (checked = 1)
+            $totalMoney = 0;
+            foreach ($data_cart_items as $item) {
+                $productData = ProductItems::find($item->product_item_id);
+                if ($productData) {
+                    // Sử dụng giá khuyến mãi nếu có, nếu không thì dùng giá gốc
+                    $price = $productData->product->price_sale ?? $productData->product->price;
+                    // Cộng dồn tổng tiền
+                    $totalMoney += $item->quantity * $price;
+                }
+            }
+
+            // Cập nhật lại tổng tiền trong giỏ hàng (nếu cần)
+            $cart->total = $totalMoney;
+            $cart->save();
+
+            // Tạo số đơn hàng
             $latestOrder = DB::table('order')->orderBy('id', 'desc')->first();
             $nextOrderNumber = $latestOrder ? intval(substr($latestOrder->oder_number, 6)) + 1 : 1;
             $orderNumber = 'order_' . $nextOrderNumber . '_' . $request->input('phone') . '_' . $request->input('email');
             
+            // Tạo đơn hàng mới
             $order = DB::table('order')->insertGetId([
                 'voucher_id' => $cart->voucher_id,
                 'user_id' => $user_id,
                 'payment_method' => $request->input('payment_method'),
-                'total_money' => $cart->total,
+                'total_money' => $totalMoney, // Sử dụng tổng tiền đã tính
                 'oder_number' => $orderNumber,
                 'shipping_address' => $request->input('shipping_address'),
                 'billing_address' => $request->input('billing_address'),
                 'created_at' => now(),
                 'updated_at' => now()
             ]);
-    
+
             $productIds = $data_cart_items->pluck('product_item_id')->toArray();
             $productDataList = ProductItems::with('product')->whereIn('id', $productIds)->get()->keyBy('id');
 
+            // Lưu chi tiết đơn hàng và cập nhật số lượng sản phẩm
             foreach ($data_cart_items as $item) {
                 $productData = $productDataList->get($item->product_item_id);
                 $quantity = intval($item->quantity);
@@ -424,30 +451,36 @@ class CartController extends Controller
                         'updated_at' => now()
                     ]);
             
-                    // Cập nhật số lượng sản phẩm
+                    // Cập nhật số lượng sản phẩm trong kho
                     $productData->quantity -= $quantity;
                     $productData->save();
                 }
             }
 
-            Cart_item::where('cart_id', $cart->id)->delete();
-            $cart->delete();
-    
+            // Xóa các sản phẩm đã được chọn (checked = 1) trong giỏ hàng
+            Cart_item::where('cart_id', $cart->id)
+                    ->where('checked', 1)
+                    ->delete();
+
+            // Nếu sau khi xóa các mục được chọn, giỏ hàng không còn mục nào, xóa giỏ hàng
+            if (Cart_item::where('cart_id', $cart->id)->count() == 0) {
+                $cart->delete();
+            }
+
             DB::commit();
-    
+
             return response()->json(['message' => 'Đơn hàng của bạn đã được đặt thành công'], 200);
-    
+
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error("Error processing order: " . $e->getMessage());
-    
+
             return response()->json([
                 'message' => 'Đã xảy ra lỗi trong quá trình đặt hàng, vui lòng thử lại sau.',
                 'error' => $e->getMessage()
             ], 500);
         }
     }
-
 
     public function addCouponCart(Request $request)
     {
