@@ -16,6 +16,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProductControllers;
 use App\Http\Controllers\CommentsController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\NewAddressController;
+
 
 // Group admin routes
 Route::group(['prefix' => 'admin'], function () {
@@ -53,14 +55,18 @@ Route::group(['prefix' => 'user'], function () {
         Route::post('/logout', [UserController::class, 'logout']);
         Route::post('/refresh', [UserController::class, 'refresh']);
         Route::post('/add_to_cart', [CartController::class, 'addToCart']);
+        Route::post('/checkcart', [CartController::class, 'moveToCheckout']);
+        Route::get('/getcheckcart', [CartController::class, 'Getcheckout']);
+        Route::post('/updatecheckcart', [CartController::class, 'updatechecked']);
         Route::get('/cart', [CartController::class, 'get_cart']);
-        Route::get('/cartbyiduser', [CartController::class, 'getCartByUserId']);
-        Route::post('/delete_product_cart', [CartController::class, 'deleteProductCart']);
+        Route::delete('/delete_product_cart', [CartController::class, 'deleteProductCart']);
         Route::post('/update_quatity_cart', [CartController::class, 'updateQuantityCart']);
         Route::post('/payment', [CartController::class, 'payment']);
         Route::post('/add-coupon-cart', [CartController::class, 'addCouponCart']);
         Route::post('/payment', [CartController::class, 'payment']);
         Route::post('/remove-voucher', [CartController::class, 'removeVoucher']);
+        Route::post('/addadress', [NewAddressController::class, 'addAddress']);
+        Route::get('/getadress', [NewAddressController::class, 'get_NewAddress']);
     }); 
 
     //Payment Vnpay
@@ -74,7 +80,7 @@ Route::get('shop/products', [ProductControllers::class, 'showShopProducts']);
 Route::get('showdetail/products/{id}', [ProductControllers::class, 'showDetail']);
 Route::delete('delete/products/{id}', [ProductControllers::class, 'destroy']);
 Route::post('update/products/{id}', [ProductControllers::class, 'updateProduct']);
-Route::get('/products/category/{cat_id}', [ProductControllers::class, 'getProductsByCategory']);
+Route::get('/products/category/{category_id}', [ProductControllers::class, 'getProductsByCategory']);
 
 // Category routes
 Route::post('categories', [CategoryController::class, 'create'])->name('categories.creates');
