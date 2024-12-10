@@ -18,8 +18,8 @@ class MomoController extends Controller
         $orderInfo = "Thanh toán đơn hàng";
         $amount = $request->amount; 
         $orderId = time(); 
-        $redirectUrl = 'https://webhook.site/b3088a6a-2d17-4f8d-a383-71389a6c600b';
-        $ipnUrl = 'https://webhook.site/b3088a6a-2d17-4f8d-a383-71389a6c600b';
+        $redirectUrl = 'http://127.0.0.1:8000/api/payment-return';
+        $ipnUrl = 'http://127.0.0.1:8000/api/payment-return';
         $requestId = time(); 
         $extraData = "";     
 
@@ -41,7 +41,8 @@ class MomoController extends Controller
             'requestType' => 'captureWallet',
             'signature' => $signature,
         ];
-    
+
+        
 
         $response = Http::post($endpoint, $data);
     
@@ -53,7 +54,6 @@ class MomoController extends Controller
                 'payUrl' => $result['payUrl'], 
                 'orderId' => $orderId,
                 'amount' => $amount,
-                'signature' => $signature
             ], 200);
         }
     
@@ -70,30 +70,10 @@ class MomoController extends Controller
 
         $data = $request->all();
 
-        $partnerCode = "MOMO";
-        $accessKey = "F8BBA842ECF85";
-        $secretKey = "K951B6PE1waDMi640xX08PD3vg6EkVlz";
-        $orderInfo = "Thanh toán đơn hàng";
-        $amount = $data['amount'];
-        $orderId = $data['orderId']; 
-        $redirectUrl = 'https://webhook.site/b3088a6a-2d17-4f8d-a383-71389a6c600b';
-        $ipnUrl = 'https://webhook.site/b3088a6a-2d17-4f8d-a383-71389a6c600b';
-        $requestId = time(); 
-        $extraData = "";     
-
-        $rawHash = "accessKey=$accessKey&amount=$amount&extraData=$extraData&ipnUrl=$ipnUrl&orderId=$orderId&orderInfo=$orderInfo&partnerCode=$partnerCode&redirectUrl=$redirectUrl&requestId=$requestId&requestType=captureWallet";
-        $signature = hash_hmac("sha256", $rawHash, $secretKey);
-
-        if ($data['signature'] == $signature) {
-            return response()->json([
-                'password'=>'chứ kí không hợp lệ',
-                'message' => 'Thanh toán thất bại'
-            ]);
-        }else{
-            return response()->json([
-                'password'=>'chứ kí hợp lệ',
-                'message' => 'Thanh toán thành công'
-            ]);
-        }
+        return response()->json([
+            'data'=>$data,
+        ]);
+        
+        
     }
 }

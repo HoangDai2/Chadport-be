@@ -296,8 +296,7 @@ class ProductControllers extends Controller
         ], 200);
     }
 
-    public function showProductById($id)
-{
+    public function showProductById($id) {
     $product = Product::find($id); // Tìm sản phẩm theo id
 
     if (!$product) {
@@ -305,5 +304,12 @@ class ProductControllers extends Controller
     }
 
     return response()->json(['data' => $product], 200); // Trả về sản phẩm tìm thấy
-}
+    }
+
+    public function totalProduct() {
+        $totalPr = Product::count();
+        return response()->json([
+            "Tổng sản phẩm"=> $totalPr
+        ]);
+    }
 }
