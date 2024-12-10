@@ -195,7 +195,7 @@ class ProductControllers extends Controller
         try {
             // Xác thực các dữ liệu đầu vào
             $validated = $request->validate([
-                'cat_id' => 'sometimes|exists:categories,id',
+                'category_id' => 'sometimes|exists:categories,id',
                 'title' => 'sometimes|max:255',
                 'name' => 'sometimes|max:500',
                 'status' => 'sometimes|in:active,inactive',
@@ -299,7 +299,7 @@ class ProductControllers extends Controller
     public function getProductsByCategory($cat_id)
     {
         // Lấy tất cả sản phẩm theo danh mục
-        $products = Product::where('cat_id', $cat_id)->get();
+        $products = Product::where('category_id', $cat_id)->get();
 
         // Kiểm tra nếu không có sản phẩm nào
         if ($products->isEmpty()) {
