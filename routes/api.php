@@ -15,7 +15,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProductControllers;
 use App\Http\Controllers\CommentsController;
+use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\NewAddressController;
+
 
 // Group admin routes
 Route::group(['prefix' => 'admin'], function () {
@@ -28,6 +30,14 @@ Route::group(['prefix' => 'admin'], function () {
 
         Route::group(['prefix' => 'product'], function () {
             Route::get('/index', [ProductControllerAD::class, 'index']);
+        });
+
+//oder 
+        Route::group(['prefix' => 'order'], function () {
+            Route::get('/index', [OrderController::class, 'index']);
+            Route::get('/detail', [OrderController::class, 'detail']);
+            Route::post('/status', [OrderController::class, 'edit']);
+            Route::get('/delete', [OrderController::class, 'delete']);
         });
     });
 });

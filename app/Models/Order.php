@@ -31,7 +31,7 @@ class Order extends Model
         return $this->belongsTo(Voucher::class);
     }
 
-    public function OrderDetail() {
-        return $this->hasOne(OrderDetail::class);
+    public function orderDetails() {
+        return $this->hasMany(OrderDetail::class);
     }
 }

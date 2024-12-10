@@ -12,18 +12,21 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\Cart;
 use App\Models\ProductItems;
+use App\Events\OrderNotifications;
 
 class CartController extends Controller
 {
     public $cart;
     public $voucher;
 
-    public function __construct()
-    {
-        $this->middleware(function ($request, $next) {
-            return $next($request);
-        });
-    }
+    // public function __construct()
+    // {
+    //     $this->middleware(function ($request, $next) {
+    //         $this->cart = \Session::get('cart');
+    //         $this->voucher = \Session::get('voucher');
+    //         return $next($request);
+    //     });
+    // }
 
     public function addToCart(Request $request)
     {
@@ -457,6 +460,15 @@ class CartController extends Controller
                 }
             }
 
+
+            Cart_item::where('cart_id', $cart->id)->delete();
+            $cart->delete();
+
+            event(new OrderNotifications('Đơn hàng ' . $orderNumber . ' đã được đặt thành công!', $orderNumber));
+
+            Log::info('Event OrderNotifications đã được phát', ['orderNumber' => $orderNumber]);
+
+
             // Xóa các sản phẩm đã được chọn (checked = 1) trong giỏ hàng
             Cart_item::where('cart_id', $cart->id)
                     ->where('checked', 1)
@@ -466,6 +478,7 @@ class CartController extends Controller
             if (Cart_item::where('cart_id', $cart->id)->count() == 0) {
                 $cart->delete();
             }
+
 
             DB::commit();
 
@@ -493,9 +506,9 @@ class CartController extends Controller
             return response()->json(['message' => 'Không tìm thấy voucher.'], 404);
         }
     
-        if (DB::table('voucher_used')->where('voucher_id', $request->voucher_id)->where('user_id', $userId)->exists()) {
-            return response()->json(['message' => 'Bạn đã sử dụng voucher này rồi.'], 403);
-        }
+        // if (DB::table('voucher_used')->where('voucher_id', $request->voucher_id)->where('user_id', $userId)->exists()) {
+        //     return response()->json(['message' => 'Bạn đã sử dụng voucher này rồi.'], 403);
+        // }
     
         $cart = Cart::where('user_id', $userId)->where('status', 'đang sử dụng')->first();
     
@@ -516,10 +529,10 @@ class CartController extends Controller
         $cart->total = $total_cart_voucher;
         $cart->save();
     
-        DB::table('voucher_used')->updateOrInsert(
-            ['voucher_id' => $request->voucher_id, 'user_id' => $userId],
-            ['created_at' => now()]
-        );
+        // DB::table('voucher_used')->updateOrInsert(
+        //     ['voucher_id' => $request->voucher_id, 'user_id' => $userId],
+        //     ['created_at' => now()]
+        // );
     
         return response()->json(['message' => 'Voucher đã được thêm thành công.', 'total_cart' => $total_cart_voucher], 200);
     }
