@@ -327,11 +327,17 @@ class ProductControllers extends Controller
     public function showProductById($id)
     {
         $product = Product::find($id); // Tìm sản phẩm theo id
-
         if (!$product) {
             return response()->json(['message' => 'Product not found'], 404); // Nếu không tìm thấy sản phẩm
         }
+    return response()->json(['data' => $product], 200); // Trả về sản phẩm tìm thấy
+    }
 
-        return response()->json(['data' => $product], 200); // Trả về sản phẩm tìm thấy
+    public function totalProduct() {
+        $totalPr = Product::count();
+        return response()->json([
+            "Tổng sản phẩm"=> $totalPr
+        ]);
     }
 }
+
