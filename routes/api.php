@@ -6,6 +6,8 @@ use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\ColorController;
+use App\Http\Controllers\Api\MomoController;
+use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\SizeController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\VariantController;
@@ -15,6 +17,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProductControllers;
 use App\Http\Controllers\CommentsController;
+use App\Http\Controllers\UserController as ControllersUserController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\NewAddressController;
 
@@ -129,6 +132,16 @@ Route::resource('voucher', VoucherController::class);
 Route::post('add/comments', [CommentsController::class, 'createComments']);
 Route::get('getall/comments/{product_id}', [CommentsController::class, 'getCommentsByProduct']);
 Route::delete('delete/comments/{comment_id}', [CommentsController::class, 'deleteComment']);
+
+// Momo payment
+Route::post('/payment/create', [MomoController::class, 'createPayment']);
+Route::get('/payment-return', [MomoController::class, 'paymentReturn']);
+
+Route::get('/showAllOrder', [OrderController::class,'showAllOrder']);
+Route::get('/totalMoney', [OrderController::class,'totalMoney']);
+
+Route::get('/totalPr', [ProductControllers::class,'totalProduct']);
+Route::get('/totalUser',[ControllersUserController::class,'totalUser']);
 
 
 
