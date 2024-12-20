@@ -13,28 +13,28 @@ class VariantController extends Controller
     public function show($id)
     {
          // Tìm sản phẩm theo ID và load các biến thể
-         $product = Product::with([
+        $product = Product::with([
              'productItems.color', // Lấy thông tin màu sắc
              'productItems.size'   // Lấy thông tin kích thước
-         ])->find($id);
-     
+        ])->find($id);
+    
          // Nếu không tìm thấy sản phẩm
-         if (!$product) {
-             return response()->json(['message' => 'Product not found'], 404);
-         }
-     
+        if (!$product) {
+            return response()->json(['message' => 'Product not found'], 404);
+        }
+    
          // Trả về thông tin sản phẩm cùng các biến thể
-         return response()->json([
-             'product' => [
-                 'id' => $product->id,
-                 'name' => $product->name,
-                 'title' => $product->title,
-                 'description' => $product->description,
-                 'status' => $product->status,
-                 'price' => $product->price,
-                 'price_sale' => $product->price_sale,
-                 'total_quantity' => $product->total_quantity,
-                 'image_product' => $product->image_product,
+        return response()->json([
+            'product' => [
+                'id' => $product->id,
+                'name' => $product->name,
+                'title' => $product->title,
+                'description' => $product->description,
+                'status' => $product->status,
+                'price' => $product->price,
+                'price_sale' => $product->price_sale,
+                'total_quantity' => $product->total_quantity,
+                'image_product' => $product->image_product,
                  'image_description' => json_decode($product->image_description), // Convert JSON string to array
              ],
              'variants' => $product->productItems->map(function ($variant) {

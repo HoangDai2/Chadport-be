@@ -22,7 +22,8 @@ class PaymentController extends Controller
         $vnp_OrderInfo = "Thanh toán mã đơn hàng" .' '. $request->order_number .'-'. $request->order_id;
         $vnp_OrderType = "billpayment";
         $vnp_Returnurl = "http://127.0.0.1:8000/api/return_paymentVnPay";
-        $vnp_TxnRef = "Thanh toán mã đơn hàng" .' '. $request->order_number;
+        // $vnp_TxnRef = "Thanh toán mã đơn hàng" .' '. $request->order_number;
+        $vnp_TxnRef = 'TXN-' . $request->order_id . '-' . time(); // Mã tham chiếu duy nhất
         $vnp_IpAddr = $_SERVER['REMOTE_ADDR'];
 
         // dd($vnp_ReturnUrl);
@@ -88,7 +89,7 @@ class PaymentController extends Controller
             if (substr($key, 0, 4) == "vnp_") {
                 $inputData[$key] = $value;
             }
-        }
+        }   
         
         unset($inputData['vnp_SecureHash']);
         ksort($inputData);
@@ -147,3 +148,4 @@ class PaymentController extends Controller
         }
     }
 }
+    

@@ -41,9 +41,12 @@ Route::group(['prefix' => 'admin'], function () {
             Route::get('/detail', [OrderController::class, 'detail']);
             Route::post('/status', [OrderController::class, 'edit']);
             Route::get('/delete', [OrderController::class, 'delete']);
+           
         });
     });
 });
+
+Route::get('/user-status', [OrderController::class, 'getOrdersByUserAndStatus']);
 
 // Group user routes
 Route::group(['prefix' => 'user'], function () {
@@ -67,6 +70,9 @@ Route::group(['prefix' => 'user'], function () {
         Route::post('/payment', [CartController::class, 'payment']);
         Route::post('/add-coupon-cart', [CartController::class, 'addCouponCart']);
         Route::post('/payment', [CartController::class, 'payment']);
+
+        Route::post('/buynows', [CartController::class, 'buyNow']);
+
         Route::post('/remove-voucher', [CartController::class, 'removeVoucher']);
         Route::post('/addadress', [NewAddressController::class, 'addAddress']);
         Route::get('/getadress', [NewAddressController::class, 'get_NewAddress']);
