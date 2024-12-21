@@ -12,10 +12,11 @@ class Comment extends Model
     protected $table = 'comment';
     
     protected $fillable = [
-        'product_id',
+        'product_item_id',
         'user_id',
         'content',
         'rating',
+        'image',
         'like_count',
         'dislike_count',
         'reported',
