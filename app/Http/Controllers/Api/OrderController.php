@@ -4,13 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
-
 use App\Models\OrderDetail;
 use App\Models\ProductItems;
 use Exception;
-
 use Illuminate\Http\Request;
-use Exception;
 use Illuminate\Support\Facades\DB;
 
 class OrderController extends Controller
@@ -262,7 +259,3 @@ class OrderController extends Controller
         }
     }
 }
-     
-}
-
-
