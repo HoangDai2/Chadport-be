@@ -13,6 +13,11 @@ use Illuminate\Support\Facades\Log;
 use App\Models\Cart;
 use App\Models\ProductItems;
 use App\Events\OrderNotifications;
+use App\Models\Color;
+use App\Models\Product;
+use App\Models\Size;
+use Illuminate\Support\Facades\Auth as FacadesAuth;
+use Tymon\JWTAuth\Contracts\Providers\Auth;
 
 class CartController extends Controller
 {
@@ -390,22 +395,24 @@ class CartController extends Controller
             }
 
             // Lọc các sản phẩm có trạng thái checked = 1
-            $data_cart_items = Cart_item::where('cart_id', $cart->id)
-                                        ->where('checked', 1)
-                                        ->get();
+            $checkedItems = Cart_item::where('cart_id', $cart->id)
+                                    ->where('checked', 1)
+                                    ->get();
 
-            if ($data_cart_items->isEmpty()) {
+            if ($checkedItems->isEmpty()) {
                 return response()->json(['message' => 'Không có sản phẩm nào được chọn để thanh toán.'], 400);
             }
 
-            // Tính tổng tiền chỉ cho các sản phẩm đã được chọn (checked = 1)
+            // Tính tổng tiền chỉ cho các sản phẩm đã được chọn
             $totalMoney = 0;
-            foreach ($data_cart_items as $item) {
-                $productData = ProductItems::find($item->product_item_id);
+            $productIds = $checkedItems->pluck('product_item_id')->toArray();
+            $productDataList = ProductItems::with('product')->whereIn('id', $productIds)->get()->keyBy('id');
+
+            foreach ($checkedItems as $item) {
+                $productData = $productDataList->get($item->product_item_id);
                 if ($productData) {
                     // Sử dụng giá khuyến mãi nếu có, nếu không thì dùng giá gốc
                     $price = $productData->product->price_sale ?? $productData->product->price;
-                    // Cộng dồn tổng tiền
                     $totalMoney += $item->quantity * $price;
                 }
             }
@@ -418,13 +425,13 @@ class CartController extends Controller
             $latestOrder = DB::table('order')->orderBy('id', 'desc')->first();
             $nextOrderNumber = $latestOrder ? intval(substr($latestOrder->oder_number, 6)) + 1 : 1;
             $orderNumber = 'order_' . $nextOrderNumber . '_' . $request->input('phone') . '_' . $request->input('email');
-            
+
             // Tạo đơn hàng mới
             $order = DB::table('order')->insertGetId([
                 'voucher_id' => $cart->voucher_id,
                 'user_id' => $user_id,
                 'payment_method' => $request->input('payment_method'),
-                'total_money' => $totalMoney, // Sử dụng tổng tiền đã tính
+                'total_money' => $totalMoney,
                 'oder_number' => $orderNumber,
                 'shipping_address' => $request->input('shipping_address'),
                 'billing_address' => $request->input('billing_address'),
@@ -432,18 +439,15 @@ class CartController extends Controller
                 'updated_at' => now()
             ]);
 
-            $productIds = $data_cart_items->pluck('product_item_id')->toArray();
-            $productDataList = ProductItems::with('product')->whereIn('id', $productIds)->get()->keyBy('id');
-
             // Lưu chi tiết đơn hàng và cập nhật số lượng sản phẩm
-            foreach ($data_cart_items as $item) {
+            foreach ($checkedItems as $item) {
                 $productData = $productDataList->get($item->product_item_id);
                 $quantity = intval($item->quantity);
-            
+
                 if ($productData) {
                     $price = $productData->product->price_sale ?? $productData->product->price;
                     $total_price = $quantity * $price;
-            
+
                     DB::table('order_detail')->insert([
                         'order_id' => $order,
                         'product_item_id' => $item->product_item_id,
@@ -453,25 +457,21 @@ class CartController extends Controller
                         'created_at' => now(),
                         'updated_at' => now()
                     ]);
-            
+
                     // Cập nhật số lượng sản phẩm trong kho
                     $productData->quantity -= $quantity;
                     $productData->save();
                 }
             }
 
-
-            Cart_item::where('cart_id', $cart->id)->delete();
-            $cart->delete();
-
-            event(new OrderNotifications('Đơn hàng ' . $orderNumber . ' đã được đặt thành công!', $orderNumber));
-
-            Log::info('Event OrderNotifications đã được phát', ['orderNumber' => $orderNumber]);
-
-
             // Xóa các sản phẩm đã được chọn (checked = 1) trong giỏ hàng
             Cart_item::where('cart_id', $cart->id)
                     ->where('checked', 1)
+                    ->delete();
+
+            // Xóa các sản phẩm đã được chọn (is_buy_now = 1) trong giỏ hàng
+            Cart_item::where('cart_id', $cart->id)
+                    ->where('is_buy_now', 1)
                     ->delete();
 
             // Nếu sau khi xóa các mục được chọn, giỏ hàng không còn mục nào, xóa giỏ hàng
@@ -479,6 +479,9 @@ class CartController extends Controller
                 $cart->delete();
             }
 
+            // Phát sự kiện thông báo đơn hàng
+            event(new OrderNotifications('Đơn hàng ' . $orderNumber . ' đã được đặt thành công!', $orderNumber));
+            Log::info('Event OrderNotifications đã được phát', ['orderNumber' => $orderNumber]);
 
             DB::commit();
 
@@ -494,6 +497,7 @@ class CartController extends Controller
             ], 500);
         }
     }
+
 
     public function addCouponCart(Request $request)
     {
@@ -566,4 +570,72 @@ class CartController extends Controller
 
         return response()->json(['message' => 'Voucher đã được xóa thành công.'], 200);
     }
+
+    public function buyNow(Request $request)
+    {
+        try {
+            $request->validate([
+                'product_item_id' => 'required|integer|exists:product_items,id',
+                'quantity' => 'required|integer|min:1',
+            ]);
+    
+            $user = auth()->user();
+            if (!$user) {
+                return response()->json(['message' => 'Bạn cần đăng nhập để thêm sản phẩm vào giỏ hàng'], 401);
+            }
+    
+            $productItem = ProductItems::with('product')->findOrFail($request->product_item_id);
+    
+            if ($productItem->quantity < $request->quantity) {
+                return response()->json(['message' => 'Sản phẩm không đủ số lượng'], 400);
+            }
+    
+            // Tìm hoặc tạo giỏ hàng cho người dùng
+            $cart = Cart::firstOrCreate(['user_id' => $user->id]);
+    
+            DB::beginTransaction();
+    
+            // Kiểm tra xem sản phẩm đã có trong giỏ hàng chưa
+            $cartItem = Cart_item::where('cart_id', $cart->id)
+                ->where('product_item_id', $productItem->id)
+                ->first();
+    
+            if ($cartItem) {
+                // Nếu có thì cập nhật số lượng và giá trị price
+                $newQuantity = $cartItem->quantity + $request->quantity;
+    
+                if ($newQuantity > $productItem->quantity) {
+                    throw new \Exception('Số lượng sản phẩm đã đạt mức tối đa');
+                }
+    
+                $cartItem->update([
+                    'quantity' => $newQuantity,
+                    'price' => $productItem->product->price_sale ?  $productItem->product->price_sale * $newQuantity :  $productItem->product->price * $newQuantity,
+                    'checked' => 1 // Đánh dấu là đã được chọn khi cập nhật
+                ]);
+            } else {
+                // Nếu chưa có thì tạo mới một Cart_item và đánh dấu checked = 1
+                $data = [
+                    'cart_id' => $cart->id,
+                    'product_item_id' =>  $productItem->id,
+                    'quantity' => $request->quantity,
+                    'price' =>  $productItem->product->price_sale ?  $productItem->product->price_sale * $request->quantity :  $productItem->product->price * $request->quantity,
+                    'checked' => 1 // Đánh dấu là đã được chọn ngay khi tạo mới
+                ];
+                Cart_item::create($data);
+            }
+    
+            DB::commit();
+    
+            return response()->json([
+                'message' => 'Thêm sản phẩm vào giỏ hàng thành công và đã được chọn.',
+            ], 200);
+    
+        } catch (\Exception $e) {
+            DB::rollback();
+            Log::error('Error adding to cart: ' . $e->getMessage());
+            return response()->json(['message' => $e->getMessage()], 400);
+        }
+    }
+
 }

@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderDetail;
 use App\Models\ProductItems;
-use Illuminate\Http\Request;
 use Exception;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class OrderController extends Controller
@@ -259,6 +259,3 @@ class OrderController extends Controller
         }
     }
 }
-    
-
-
