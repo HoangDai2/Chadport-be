@@ -72,6 +72,7 @@ class CartController extends Controller
                     'product_item_id' =>  $productItem->id,
                     'quantity' => $request->quantity,
                     'price' =>  $productItem->product->price_sale ?  $productItem->product->price_sale * $request->quantity :  $productItem->product->price * $request->quantity ,
+                    'checked' => 0
                 ];
                 Cart_item::create($data);
             }
@@ -94,7 +95,7 @@ class CartController extends Controller
             $cart = Cart::where('user_id', auth()->id())
                 ->where('status', 'đang sử dụng')
                 ->first();
-    
+
             if (!$cart) {
                 return response()->json([
                     'message' => 'Giỏ hàng trống.',
@@ -102,11 +103,11 @@ class CartController extends Controller
                     'total_price' => 0,
                 ], 200);
             }
-    
-            $cartItems = Cart_item::with('productItem')
+
+            $cartItems = Cart_item::with('productItem.product') // Đảm bảo eager load product
                 ->where('cart_id', $cart->id)
                 ->get();
-    
+
             if ($cartItems->isEmpty()) {
                 return response()->json([
                     'message' => 'Giỏ hàng trống.',
@@ -114,60 +115,228 @@ class CartController extends Controller
                     'total_price' => 0,
                 ], 200);
             }
-    
+
             $totalPrice = $cartItems->sum(function ($item) {
                 return $item->price;
             });
-    
+
+            // Lấy thông tin chi tiết của từng sản phẩm trong giỏ hàng
             $formattedCartItems = $cartItems->map(function ($item) {
+                $productDetails = $item->productItem->product;
+
                 return [
+                    'cart_item_ids' => $item->id,
                     'product_item_id' => $item->product_item_id,
                     'quantity' => $item->quantity,
                     'total_price' => $item->price,
+                    'product_name' => $productDetails->name,  // Tên sản phẩm
+                    'product_price' => $productDetails->price,  // Giá gốc
+                    'product_sale_price' => $productDetails->price_sale,  // Giá giảm
+                    'color' => $item->productItem->color,  // Màu sắc
+                    'size' => $item->productItem->size,  // Kích thước
+                    'image_product' => $productDetails->image_product,  // Đường dẫn ảnh sản phẩm
                 ];
             });
 
-            $cart->total = $totalPrice;
-            $cart->save();
-    
             return response()->json([
                 'message' => 'Danh sách các mục trong giỏ hàng.',
                 'cart_id' => $cart->id,
                 'cart_items' => $formattedCartItems,
-                'total_price' => $cart->total,
+                'total_price' => $totalPrice,
             ], 200);
         } catch (\Exception $e) {
-            Log::error('Error retrieving cart: ' . $e->getMessage());
             return response()->json([
-                'message' => 'Đã xảy ra lỗi khi lấy thông tin giỏ hàng.',
+                'message' => 'Có lỗi xảy ra.',
                 'error' => $e->getMessage(),
             ], 500);
         }
     }
 
+    // hàm này xử lí chuyển trạng thái true false của sản phẩm chọn hoặc bỏ chon
+    public function moveToCheckout(Request $request)
+    {
+        try {
+            $request->validate([
+                'cart_item_ids' => 'required|array',  // Kiểm tra mảng các ID sản phẩm
+                'cart_item_ids.*' => 'integer|exists:cart_item,id',  // Kiểm tra các ID có tồn tại trong bảng cart_items
+            ]);
+            $user = auth()->user();
+            if (!$user) {
+                return response()->json(['message' => 'Bạn cần đăng nhập để thực hiện thao tác này'], 401);
+            }
+
+            // Lấy giỏ hàng của người dùng
+            $cart = Cart::where('user_id', $user->id)->first();
+            if (!$cart) {
+                return response()->json(['message' => 'Giỏ hàng không tồn tại'], 404);
+            }
+
+            // Cập nhật trạng thái "is_selected" cho các sản phẩm được chọn trong giỏ hàng
+            $updatedItems = Cart_item::whereIn('id', $request->cart_item_ids)
+                ->where('cart_id', $cart->id)
+                ->update(['checked' => true]);  // Đánh dấu là đã được chọn
+            
+            // Lấy các sản phẩm đã được chọn
+            $cartItems = Cart_item::where('cart_id', $cart->id)
+                ->where('checked', true)
+                ->get();
+
+            if ($cartItems->isEmpty()) {
+                return response()->json(['message' => 'Không có sản phẩm nào được chọn'], 400);
+            }
+
+            // Kiểm tra tồn kho và chuẩn bị di chuyển sản phẩm
+            foreach ($cartItems as $cartItem) {
+                $productItem = $cartItem->productItem;
+                if ($productItem->quantity < $cartItem->quantity) {
+                    return response()->json(['message' => 'Một số sản phẩm không đủ số lượng'], 400);
+                }
+            }
+
+            // Di chuyển sản phẩm đã chọn sang checkout (thực hiện các hành động như lưu vào bảng checkout, v.v.)
+            // Giả sử bạn có một bảng checkout hoặc hành động thêm sản phẩm vào bảng đó.
+            
+            return response()->json(['message' => 'Sản phẩm đã được chuyển sang checkout thành công']);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Có lỗi xảy ra: ' . $e->getMessage()], 500);
+        }
+    }
+
+    // hàm này xử lí sản phẩm được chọn từ bên giỏ hàng sang bên checkout
+    public function Getcheckout(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return response()->json(['message' => 'Bạn cần đăng nhập để thanh toán'], 401);
+        }
+    
+        $cart = Cart::where('user_id', $user->id)->first();
+        if (!$cart) {
+            return response()->json(['message' => 'Giỏ hàng không tồn tại'], 404);
+        }
+    
+        // Lấy các sản phẩm đã được chọn (checked = true)
+        $cartItems = Cart_item::where('cart_id', $cart->id)
+                              ->where('checked', true)
+                              ->get();
+    
+        // Tính tổng tiền thanh toán
+        $totalAmount = $cartItems->sum('price'); // Tổng tiền thanh toán
+    
+        // Lấy dữ liệu chi tiết từng sản phẩm
+        $responseItems = $cartItems->map(function($item) {
+            $productDetails = $item->productItem->product;
+    
+            return [
+                'cart_item_ids' => $item->id,
+                'product_item_id' => $item->product_item_id,
+                'quantity' => $item->quantity,
+                'total_price' => $item->price,
+                'product_name' => $productDetails->name,  // Tên sản phẩm
+                'product_price' => $productDetails->price,  // Giá gốc
+                'product_sale_price' => $productDetails->price_sale,  // Giá giảm
+                'color' => $item->productItem->color,  // Màu sắc
+                'size' => $item->productItem->size,  // Kích thước
+                'image_product' => $productDetails->image_product,  // Đường dẫn ảnh sản phẩm
+            ];
+        });
+    
+        // Trả về dữ liệu
+        return response()->json([
+            'cart_items' => $responseItems,
+            'total_amount' => $totalAmount
+        ]);
+    }
+    
+    // chuyển trạng thái từ true thành false bên checkout
+    public function updatechecked(Request $request)
+    {
+        // Xác nhận người dùng đã đăng nhập
+        $user = auth()->user();
+        if (!$user) {
+            return response()->json(['message' => 'Bạn cần đăng nhập để thực hiện thao tác này'], 401);
+        }
+
+        // Kiểm tra cart_item_id có hợp lệ hay không
+        $request->validate([
+            'cart_item_id' => 'required|integer|exists:cart_item,id', // Kiểm tra mỗi ID có tồn tại trong bảng cart_items
+        ]);
+
+        // Lấy giỏ hàng của người dùng
+        $cart = Cart::where('user_id', $user->id)->first();
+        if (!$cart) {
+            return response()->json(['message' => 'Giỏ hàng không tồn tại'], 404);
+        }
+
+        // Cập nhật trạng thái checked thành false cho sản phẩm đã chọn
+        $updatedItem = Cart_item::where('id', $request->cart_item_id)
+                                ->where('cart_id', $cart->id)
+                                ->update(['checked' => false]);
+
+        // Kiểm tra xem có sản phẩm nào được cập nhật không
+        if ($updatedItem === 0) {
+            return response()->json(['message' => 'Sản phẩm không tồn tại trong giỏ hàng hoặc không có thay đổi'], 404);
+        }
+
+        return response()->json([
+            'message' => 'Cập nhật trạng thái thành công',
+            'updated_item_id' => $request->cart_item_id // Trả về ID sản phẩm đã được cập nhật
+        ]);
+    }
+
+
+
     public function deleteProductCart(Request $request)
     {
         try {
-            $cartItem = Cart_item::whereHas('cart', function ($query) use ($request) {
-                $query->where('user_id', auth()->id())
-                      ->where('status', 'đang sử dụng');
-            })
-            ->where('product_item_id', $request->product_item_id)
-            ->first();
-
-            if (!$cartItem) {
-                return response()->json([
-                    'message' => 'Giỏ hàng trống hoặc sản phẩm không có trong giỏ hàng.',
-                ], 404);
+            $user = auth()->user();
+            if (!$user) {
+                return response()->json(['message' => 'Bạn cần đăng nhập để xóa sản phẩm khỏi giỏ hàng'], 401);
             }
-
-            $cartItem->delete();
-            return $this->get_cart();
-        } catch (Exception $e) {
-            Log::error($e->getMessage());
+    
+            // Nếu có product_item_id, xóa sản phẩm cụ thể
+            if ($request->has('product_item_id')) {
+                $request->validate([
+                    'product_item_id' => 'required|integer|exists:product_items,id',
+                ]);
+    
+                $cart = Cart::where('user_id', $user->id)->first();
+    
+                if (!$cart) {
+                    return response()->json(['message' => 'Giỏ hàng không tồn tại'], 404);
+                }
+    
+                $cartItem = Cart_item::where('cart_id', $cart->id)
+                    ->where('product_item_id', $request->product_item_id)
+                    ->first();
+    
+                if (!$cartItem) {
+                    return response()->json(['message' => 'Sản phẩm không có trong giỏ hàng'], 404);
+                }
+    
+                $cartItem->delete();
+    
+                return response()->json(['message' => 'Sản phẩm đã được xóa khỏi giỏ hàng'], 200);
+            }
+    
+            // Nếu không có product_item_id, xóa tất cả các sản phẩm trong giỏ hàng
+            $cart = Cart::where('user_id', $user->id)->first();
+    
+            if (!$cart) {
+                return response()->json(['message' => 'Giỏ hàng không tồn tại'], 404);
+            }
+    
+            // Xóa tất cả các sản phẩm trong giỏ hàng
+            Cart_item::where('cart_id', $cart->id)->delete();
+    
+            return response()->json(['message' => 'Tất cả sản phẩm đã được xóa khỏi giỏ hàng'], 200);
+    
+        } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 500);
         }
     }
+
+
 
     public function updateQuantityCart(Request $request)
     {
@@ -212,34 +381,61 @@ class CartController extends Controller
         DB::beginTransaction();
         try {
             $user_id = auth()->id();
-    
+
+            // Lấy giỏ hàng của người dùng với trạng thái "đang sử dụng"
             $cart = Cart::where('user_id', $user_id)->where('status', 'đang sử dụng')->first();
-    
+
             if (!$cart) {
                 return response()->json(['message' => 'Giỏ hàng không hợp lệ.'], 400);
             }
-    
-            $data_cart_items = Cart_item::where('cart_id', $cart->id)->get();
 
+            // Lọc các sản phẩm có trạng thái checked = 1
+            $data_cart_items = Cart_item::where('cart_id', $cart->id)
+                                        ->where('checked', 1)
+                                        ->get();
+
+            if ($data_cart_items->isEmpty()) {
+                return response()->json(['message' => 'Không có sản phẩm nào được chọn để thanh toán.'], 400);
+            }
+
+            // Tính tổng tiền chỉ cho các sản phẩm đã được chọn (checked = 1)
+            $totalMoney = 0;
+            foreach ($data_cart_items as $item) {
+                $productData = ProductItems::find($item->product_item_id);
+                if ($productData) {
+                    // Sử dụng giá khuyến mãi nếu có, nếu không thì dùng giá gốc
+                    $price = $productData->product->price_sale ?? $productData->product->price;
+                    // Cộng dồn tổng tiền
+                    $totalMoney += $item->quantity * $price;
+                }
+            }
+
+            // Cập nhật lại tổng tiền trong giỏ hàng (nếu cần)
+            $cart->total = $totalMoney;
+            $cart->save();
+
+            // Tạo số đơn hàng
             $latestOrder = DB::table('order')->orderBy('id', 'desc')->first();
             $nextOrderNumber = $latestOrder ? intval(substr($latestOrder->oder_number, 6)) + 1 : 1;
             $orderNumber = 'order_' . $nextOrderNumber . '_' . $request->input('phone') . '_' . $request->input('email');
             
+            // Tạo đơn hàng mới
             $order = DB::table('order')->insertGetId([
                 'voucher_id' => $cart->voucher_id,
                 'user_id' => $user_id,
                 'payment_method' => $request->input('payment_method'),
-                'total_money' => $cart->total,
+                'total_money' => $totalMoney, // Sử dụng tổng tiền đã tính
                 'oder_number' => $orderNumber,
                 'shipping_address' => $request->input('shipping_address'),
                 'billing_address' => $request->input('billing_address'),
                 'created_at' => now(),
                 'updated_at' => now()
             ]);
-    
+
             $productIds = $data_cart_items->pluck('product_item_id')->toArray();
             $productDataList = ProductItems::with('product')->whereIn('id', $productIds)->get()->keyBy('id');
 
+            // Lưu chi tiết đơn hàng và cập nhật số lượng sản phẩm
             foreach ($data_cart_items as $item) {
                 $productData = $productDataList->get($item->product_item_id);
                 $quantity = intval($item->quantity);
@@ -258,11 +454,12 @@ class CartController extends Controller
                         'updated_at' => now()
                     ]);
             
-                    // Cập nhật số lượng sản phẩm
+                    // Cập nhật số lượng sản phẩm trong kho
                     $productData->quantity -= $quantity;
                     $productData->save();
                 }
             }
+
 
             Cart_item::where('cart_id', $cart->id)->delete();
             $cart->delete();
@@ -272,21 +469,31 @@ class CartController extends Controller
             Log::info('Event OrderNotifications đã được phát', ['orderNumber' => $orderNumber]);
 
 
+            // Xóa các sản phẩm đã được chọn (checked = 1) trong giỏ hàng
+            Cart_item::where('cart_id', $cart->id)
+                    ->where('checked', 1)
+                    ->delete();
+
+            // Nếu sau khi xóa các mục được chọn, giỏ hàng không còn mục nào, xóa giỏ hàng
+            if (Cart_item::where('cart_id', $cart->id)->count() == 0) {
+                $cart->delete();
+            }
+
+
             DB::commit();
-    
+
             return response()->json(['message' => 'Đơn hàng của bạn đã được đặt thành công'], 200);
-    
+
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error("Error processing order: " . $e->getMessage());
-    
+
             return response()->json([
                 'message' => 'Đã xảy ra lỗi trong quá trình đặt hàng, vui lòng thử lại sau.',
                 'error' => $e->getMessage()
             ], 500);
         }
     }
-
 
     public function addCouponCart(Request $request)
     {
