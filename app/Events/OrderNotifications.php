@@ -14,6 +14,7 @@ class OrderNotifications implements ShouldBroadcast
 
     public $message;
     public $orderNumber;
+    public $user_id;
 
     /**
      * Create a new event instance.
@@ -22,15 +23,16 @@ class OrderNotifications implements ShouldBroadcast
      * @param string $orderNumber
      * @return void
      */
-    public function __construct($message, $orderNumber)
+    public function __construct($message, $orderNumber,$user_id)
     {
         $this->message = $message;
         $this->orderNumber = $orderNumber;
+        $this->userId = $user_id;
     }
 
     public function broadcastOn()
     {
-        return new Channel('notifications-order');
+        return new PrivateChannel('notifications-order.'. $this->user_id); // Kênh riêng cho người dùng);
     }
 
     public function broadcastAs()
