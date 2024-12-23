@@ -148,3 +148,8 @@ Route::get('/totalUser',[ControllersUserController::class,'totalUser']);
 
 
 Route::get('/return_paymentVnPay', [PaymentController::class, 'returnPaymentVnPay']);
+
+Route::post('/orders/bill/status', [OrderController::class, 'editBillStatus']);
+Route::get('/profile/status', [OrderController::class, 'getOrdersByUserAndStatus']);
+Route::get('/all-ordersAdmin', [OrderController::class, 'getAllOrdersAdmin']);
+Route::get('/all-ordersAdmin/{id}', [OrderController::class, 'getOrderById']);
