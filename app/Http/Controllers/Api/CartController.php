@@ -267,7 +267,7 @@ class CartController extends Controller
             Cart_item::where('cart_id', $cart->id)->delete();
             $cart->delete();
 
-            event(new OrderNotifications('Đơn hàng ' . $orderNumber . ' đã được đặt thành công!', $orderNumber));
+            event(new OrderNotifications('Đơn hàng ' . $orderNumber . ' đã được đặt thành công!', $orderNumber, $user_id));
 
             Log::info('Event OrderNotifications đã được phát', ['orderNumber' => $orderNumber]);
 

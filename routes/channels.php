@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Broadcast;
+use Illuminate\Support\Facades\Log;
 
 /*
 |--------------------------------------------------------------------------
@@ -13,6 +14,9 @@ use Illuminate\Support\Facades\Broadcast;
 |
 */
 
-Broadcast::channel('notifications-order', function ($user) {
-    return true;
+Broadcast::channel('notifications-order.{id}', function ($user, $id) {
+    if($user->id === $id) {
+        Log::info($user->id, $id);
+        return true;
+    }
 });
