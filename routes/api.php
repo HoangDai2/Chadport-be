@@ -45,7 +45,6 @@ Route::group(['prefix' => 'admin'], function () {
     });
 });
 
-Route::get('/user-status', [OrderController::class, 'getOrdersByUserAndStatus']);
 
 // Group user routes
 Route::group(['prefix' => 'user'], function () {
@@ -148,3 +147,8 @@ Route::get('/totalUser',[ControllersUserController::class,'totalUser']);
 
 
 Route::get('/return_paymentVnPay', [PaymentController::class, 'returnPaymentVnPay']);
+
+Route::post('/orders/bill/status', [OrderController::class, 'editBillStatus']);
+Route::get('/all-ordersAdmin', [OrderController::class, 'getAllOrdersAdmin']);
+Route::get('/all-ordersAdmin/{id}', [OrderController::class, 'getOrderById']);
+Route::get('/user-status', [OrderController::class, 'getOrdersByUserAndStatus']);
