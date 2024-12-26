@@ -77,7 +77,7 @@ Route::group(['prefix' => 'user'], function () {
         Route::get('/getadress', [NewAddressController::class, 'get_NewAddress']);
         // comments routes
         Route::post('add/comments', [ApiCommentController::class, 'addComments']);
-        Route::get('getall/comments/{product_id}', [ApiCommentController::class, 'getCommentsByProduct']);
+        Route::get('getall/comments', [ApiCommentController::class, 'getCommentsByProduct']);
         Route::delete('delete/comments/{comment_id}', [ApiCommentController::class, 'deleteComment']);
 
         
