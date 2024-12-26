@@ -242,6 +242,7 @@ class OrderController extends Controller
     }
 
     public function editBillStatus(Request $request)
+
     {
 
         $validStatuses = [
@@ -273,7 +274,6 @@ class OrderController extends Controller
                 if ($currentStatusIndex === false || $nextStatusIndex == $currentStatusIndex + 1) {
                     $order->status = $validStatuses[$nextStatusIndex];
                     $order->save();
-
                     return response()->json([
                         'message' => 'Trạng thái đơn hàng đã được cập nhật',
                         'data' => $order
@@ -295,8 +295,7 @@ class OrderController extends Controller
             ], 500);
         }
     }
-
-    public function getOrdersByUserAndStatus(Request $request)
+  public function getOrdersByUserAndStatus(Request $request)
     {
         try {
             // Xác thực JWT và lấy thông tin user từ token
@@ -328,7 +327,7 @@ class OrderController extends Controller
             $orderDetails = [];
             foreach ($orders as $order) {
                 // Lấy danh sách chi tiết đơn hàng
-                $details = OrderDetail::where('order_id', $order->id)
+                $details = OrderDetail::where('id', $order->id)
                     ->get()
                     ->map(function ($orderDetail) {
                         // Lấy thông tin sản phẩm từ bảng ProductItems qua product_item_id
@@ -384,8 +383,7 @@ class OrderController extends Controller
         }
     }
 
-    public function getAllOrdersAdmin(Request $request)
-    {
+    public function getAllOrdersAdmin(Request $request)    {
         try {
             $orders = Order::orderBy('created_at', 'desc')->get();
 
@@ -456,6 +454,7 @@ class OrderController extends Controller
         }
     }
 
+
     public function getOrderById($orderId)
     {
         try {
@@ -522,9 +521,8 @@ class OrderController extends Controller
             ], 500);
         }
     }
-
 }
-    
+
     // private function generateRequestId($length = 10) {
     //     $characters = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
     //     $charactersLength = strlen($characters);
