@@ -11,7 +11,7 @@ class PaymentController extends Controller
     public function paymentVnPay(Request $request)
     {
         $vnp_Url = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
-        $vnp_HashSecret = "79WJ46ZSOP99QOE6IL38N4H2UR1G5JH8";
+        $vnp_HashSecret = "DH63N76YR1W0OCH6YTF86GECMLWR99UJ";
 
         $vnp_Command =  "pay";
         $vnp_TmnCode = "F534FO6G";
@@ -83,7 +83,7 @@ class PaymentController extends Controller
     public function returnPaymentVnPay(Request $request)
     { 
         $vnp_SecureHash = $_GET['vnp_SecureHash'];
-        $vnp_HashSecret = "79WJ46ZSOP99QOE6IL38N4H2UR1G5JH8";
+        $vnp_HashSecret = "DH63N76YR1W0OCH6YTF86GECMLWR99UJ";
         $inputData = array();
         foreach ($_GET as $key => $value) {
             if (substr($key, 0, 4) == "vnp_") {
@@ -133,7 +133,11 @@ class PaymentController extends Controller
                 $parts = explode('-',$order_info);
                 $order_id = end($parts);
                 
-                DB::table('order')->where('id', $order_id)->update(['status' => 'đã thanh toán']);
+                DB::table('order')->where('id', $order_id)->update([
+                    'status' => 'đã thanh toán',
+                    'transaction_no' => $_GET['vnp_TransactionNo'],
+                    'transaction_date' => $_GET['vnp_PayDate'],
+                ]);
 
                 return response()->json([
                     'message' => $message_array[$_GET['vnp_ResponseCode']],

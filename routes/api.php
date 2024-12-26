@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\ColorController;
+use App\Http\Controllers\Api\CommentController as ApiCommentController;
 use App\Http\Controllers\Api\MomoController;
 use App\Http\Controllers\Api\SizeController;
 use App\Http\Controllers\Api\UserController;
@@ -15,7 +16,6 @@ use App\Http\Controllers\Api\PaymentController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProductControllers;
-use App\Http\Controllers\CommentsController;
 use App\Http\Controllers\UserController as ControllersUserController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\NewAddressController;
@@ -45,7 +45,6 @@ Route::group(['prefix' => 'admin'], function () {
     });
 });
 
-Route::get('/user-status', [OrderController::class, 'getOrdersByUserAndStatus']);
 
 // Group user routes
 Route::group(['prefix' => 'user'], function () {
@@ -75,6 +74,12 @@ Route::group(['prefix' => 'user'], function () {
         Route::post('/remove-voucher', [CartController::class, 'removeVoucher']);
         Route::post('/addadress', [NewAddressController::class, 'addAddress']);
         Route::get('/getadress', [NewAddressController::class, 'get_NewAddress']);
+        // comments routes
+        Route::post('add/comments', [ApiCommentController::class, 'addComments']);
+        Route::get('getall/comments/{product_id}', [ApiCommentController::class, 'getCommentsByProduct']);
+        Route::delete('delete/comments/{comment_id}', [ApiCommentController::class, 'deleteComment']);
+
+        
     }); 
 
     //Payment Vnpay
@@ -127,10 +132,7 @@ Route::resource('brand', BrandController::class);
 //Voucher route
 Route::resource('voucher', VoucherController::class);
 
-// comments routes
-Route::post('add/comments', [CommentsController::class, 'createComments']);
-Route::get('getall/comments/{product_id}', [CommentsController::class, 'getCommentsByProduct']);
-Route::delete('delete/comments/{comment_id}', [CommentsController::class, 'deleteComment']);
+
 
 // Momo payment
 Route::post('/payment/create', [MomoController::class, 'createPayment']);
@@ -145,3 +147,8 @@ Route::get('/totalUser',[ControllersUserController::class,'totalUser']);
 
 
 Route::get('/return_paymentVnPay', [PaymentController::class, 'returnPaymentVnPay']);
+
+Route::post('/orders/bill/status', [OrderController::class, 'editBillStatus']);
+Route::get('/all-ordersAdmin', [OrderController::class, 'getAllOrdersAdmin']);
+Route::get('/all-ordersAdmin/{id}', [OrderController::class, 'getOrderById']);
+Route::get('/user-status', [OrderController::class, 'getOrdersByUserAndStatus']);
