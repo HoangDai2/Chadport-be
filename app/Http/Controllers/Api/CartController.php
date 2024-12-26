@@ -464,6 +464,15 @@ class CartController extends Controller
                 }
             }
 
+
+            Cart_item::where('cart_id', $cart->id)->delete();
+            $cart->delete();
+
+            event(new OrderNotifications('Đơn hàng ' . $orderNumber . ' đã được đặt thành công!', $orderNumber, $user_id));
+
+            Log::info('Event OrderNotifications đã được phát', ['orderNumber' => $orderNumber]);
+
+
             // Xóa các sản phẩm đã được chọn (checked = 1) trong giỏ hàng
             Cart_item::where('cart_id', $cart->id)
                     ->where('checked', 1)
@@ -480,8 +489,8 @@ class CartController extends Controller
             }
 
             // Phát sự kiện thông báo đơn hàng
-            event(new OrderNotifications('Đơn hàng ' . $orderNumber . ' đã được đặt thành công!', $orderNumber));
-            Log::info('Event OrderNotifications đã được phát', ['orderNumber' => $orderNumber]);
+            // event(new OrderNotifications('Đơn hàng ' . $orderNumber . ' đã được đặt thành công!', $orderNumber));
+            // Log::info('Event OrderNotifications đã được phát', ['orderNumber' => $orderNumber]);
 
             DB::commit();
 
