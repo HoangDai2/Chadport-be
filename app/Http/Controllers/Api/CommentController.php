@@ -51,6 +51,18 @@ class CommentController extends Controller
             if (!$checkComment) {
                 return response()->json(['error' => 'Bạn chưa mua sản phẩm này hoặc đơn hàng chưa hoàn thành.'], 403);
             }
+
+            //kiểm tra user đã đánh giá sản phẩm này chưa
+            $existComment = DB::table('comment')
+            ->where('product_item_id', $productId)
+            ->where('user_id', $user)
+            ->first();
+
+            if ($existComment) {
+                return response()->json(['error' => 'Bạn đã đánh giá sản phẩm này rồi.'], 403);
+            }
+
+
             $comment = Comment::create([
                 'product_item_id'=> $productId,
                 'user_id'=>$user,
@@ -72,44 +84,60 @@ class CommentController extends Controller
 
     }
 
-    // hàm lấy all commentsL
-    public function getCommentsByProduct($product_id) {
-        // Lấy tất cả các bình luận của một sản phẩm cụ thể
-        $comments = Comment::where('product_id', $product_id)
-                           ->with('user') // Sử dụng eager loading để lấy thông tin user nếu cần
-                           ->get();
-    
+    // hàm lấy all comments sử dụng trong trang chi tiết sản phẩm (hàm lấy bình luận của tất cả user)
+    public function getCommentsByProduct() {
+        $comments = Comment::all();
         return response()->json([
-            'data' => $comments,
+            'data' => $comments
         ], 200);
     }
-    
+
+    //hàm lấy tắt cả các bình luận của user 
+    public function getAllCommentsByUser (Request $request) {
+        $user = auth()->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Bạn cần đăng nhập để thêm sản phẩm vào giỏ hàng'], 401);
+         }
+        $comments = Comment::where('user_id', $user->id)->get();
+        return response()->json([
+            'data' => $comments
+        ], 200);
+    } 
+
     // Hàm xóa comment
-    public function deleteComment(Request $request, $comment_id)
+    public function deleteComment(string $comment_id)
     {
+        try {
+        
         // Tìm comment
-        $comment = Comment::find($comment_id);
+        $comment = DB::table('comment')->where('comment_id', $comment_id)->first();
 
         // Kiểm tra nếu comment không tồn tại
         if (!$comment) {
             return response()->json([
-                'message' => 'Comment not found',
+                'message' => 'Comment không tồn tại',
             ], 404);
         }
-
         // Kiểm tra nếu user_id trong request khớp với user_id của comment
-        if ($comment->user_id != $request->input('user_id') || $comment->product_id != $request->input('product_id')) {
+        if ($comment->user_id != auth()->user()->id) {
             return response()->json([
                 'message' => 'Unauthorized to delete this comment',
             ], 403);
         }
 
         // Xóa comment
-        $comment->delete();
+        DB::table('comment')->where('comment_id', $comment_id)->delete();
 
         return response()->json([
             'message' => 'Comment deleted successfully',
         ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Có lỗi xảy ra',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
 }

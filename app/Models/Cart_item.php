@@ -17,7 +17,9 @@ class Cart_item extends Model
         'checked',
         'quantity',
         'price',
+        'checked',
         'is_buy_now'
+        
     ];
 
     public function cart()
