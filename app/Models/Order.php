@@ -20,6 +20,9 @@ class Order extends Model
         'shipping_address',
         'billing_address',
         'status',
+        'note_user',
+        'note_admin',
+        'check_refund'
     ];
 
     //  Relationship

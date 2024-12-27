@@ -479,9 +479,9 @@ class CartController extends Controller
                     ->delete();
 
             // Xóa các sản phẩm đã được chọn (is_buy_now = 1) trong giỏ hàng
-            Cart_item::where('cart_id', $cart->id)
-                    ->where('is_buy_now', 1)
-                    ->delete();
+            // Cart_item::where('cart_id', $cart->id)
+            //         ->where('is_buy_now', 1)
+            //         ->delete();
 
             // Nếu sau khi xóa các mục được chọn, giỏ hàng không còn mục nào, xóa giỏ hàng
             if (Cart_item::where('cart_id', $cart->id)->count() == 0) {
