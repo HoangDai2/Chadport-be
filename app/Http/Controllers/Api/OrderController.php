@@ -7,6 +7,7 @@ use App\Mail\SendNotiRefundMail;
 use App\Models\Order;
 use App\Models\OrderDetail;
 use App\Models\ProductItems;
+use App\Models\User;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -457,7 +458,35 @@ class OrderController extends Controller
         }
     }
 
-
+    public function confirmRefund(Request $request)
+    {
+        try{
+            $reason = $request->reason;
+            $order = Order::where('id', $request->order_id)->first();
+            $user = User::where('id', $order->user_id)->first();
+            if(empty($order)){
+                return response()->json([
+                    'message' => 'Không tìm thấy order',
+                ], 404);
+            }
+            $order->update([
+                'note_admin' => $reason,
+                'check_refund' => $request->check_refund,  // 0 Chờ xử lý, 1 xác nhận, 2 từ chối
+                'status' => 'bị hủy'
+            ]);
+            Mail::to($user->email)->send(new SendNotiRefundMail($user, $order));
+            return response()->json([
+                'message' => 'Cập nhật trạng thái yêu cầu order thành công',
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error("Error processing order: " . $e->getMessage());
+            return response()->json([
+                'message' => 'Đã xảy ra lỗi.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    
     public function getOrderById($orderId)
     {
         try {
@@ -535,6 +564,5 @@ class OrderController extends Controller
     //         $randomString .= $characters[rand(0, $charactersLength - 1)];
     //     }
     
-        return $randomString;
-    }
-}
+        // return $randomString;
+    
