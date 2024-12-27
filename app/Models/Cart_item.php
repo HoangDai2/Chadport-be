@@ -14,6 +14,7 @@ class Cart_item extends Model
         'id',
         'cart_id',
         'product_item_id',
+        'checked',
         'quantity',
         'price',
         'is_buy_now'

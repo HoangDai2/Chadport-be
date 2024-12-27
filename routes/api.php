@@ -40,6 +40,8 @@ Route::group(['prefix' => 'admin'], function () {
             Route::get('/detail', [OrderController::class, 'detail']);
             Route::post('/status', [OrderController::class, 'edit']);
             Route::get('/delete', [OrderController::class, 'delete']);
+            Route::get('/list_refund', [OrderController::class, 'listRefund']);
+            Route::post('/confirm_refund', [OrderController::class, 'confirmRefund']);
            
         });
     });
@@ -59,6 +61,8 @@ Route::group(['prefix' => 'user'], function () {
         Route::post('/update', [UserController::class, 'update']); 
         Route::post('/logout', [UserController::class, 'logout']);
         Route::post('/refresh', [UserController::class, 'refresh']);
+        Route::get('/my_orders', [UserController::class, 'myOrders']);
+        Route::post('/change_status_order', [UserController::class, 'changeMyOrder']);
         Route::post('/add_to_cart', [CartController::class, 'addToCart']);
         Route::post('/checkcart', [CartController::class, 'moveToCheckout']);
         Route::get('/getcheckcart', [CartController::class, 'Getcheckout']);

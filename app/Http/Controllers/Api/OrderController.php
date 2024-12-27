@@ -3,15 +3,18 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\SendNotiRefundMail;
 use App\Models\Order;
 use App\Models\OrderDetail;
 use App\Models\ProductItems;
+use App\Models\User;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Mail;
 
 class OrderController extends Controller
 {
@@ -114,7 +117,7 @@ class OrderController extends Controller
     
         try {
             $order = Order::findOrFail($request->input('order_id'));
-    
+            $user = User::where('id', $order->user_id)->first();
             $currentStatusIndex = array_search($order->status, $validStatuses);
             $nextStatusIndex = $request->input('status');
     
@@ -131,6 +134,8 @@ class OrderController extends Controller
                         'message' => 'Trạng thái đơn hàng đã được cập nhật, đơn hàng đã được hoàn tiền',
                         'data' => $order
                     ], 200);
+
+                    Mail::to($user->email)->send(new SendNotiRefundMail($user, $order));
                 }else {
                     return response()->json([
                         'message' => 'Lỗi hoàn tiền',
@@ -250,5 +255,79 @@ class OrderController extends Controller
         }
     
         return $randomString;
+    }
+
+    public function listRefund(Request $request)
+    {
+        try{
+            $orders = Order::whereIn('check_refund', [0,1,2])->get();
+
+            $formattedOrders = $orders->map(function($order) {
+                $note = json_decode($order->note_user, true);
+
+                $reason = $note['reason'] ?? null;
+                $accountInfo = $note['account_info'] ?? [];
+                $status = $order->check_refund === 0 ? 'Chờ xử lý' : 'Đã hoàn tiền';
+
+                return [
+                    'id' => $order->id,
+                    'order_number' => $order->oder_number,
+                    'total_order' => $order->total_money,
+                    'reason' => $reason,
+                    'accountInfo' => $accountInfo,
+                    'check_refund' => $order->check_refund,
+                    'status' => $status,
+                ];
+            });
+
+            return response()->json([
+                'message' => 'Danh sách đơn hàng yêu cầu hoàn tiền',
+                'data' => $formattedOrders
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error("Error processing order: " . $e->getMessage());
+
+            return response()->json([
+                'message' => 'Đã xảy ra lỗi.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function confirmRefund(Request $request)
+    {
+        try{
+
+            $reason = $request->reason;
+            $order = Order::where('id', $request->order_id)->first();
+
+            $user = User::where('id', $order->user_id)->first();
+
+            if(empty($order)){
+                return response()->json([
+                    'message' => 'Không tìm thấy order',
+                ], 404);
+            }
+
+            $order->update([
+                'note_admin' => $reason,
+                'check_refund' => $request->check_refund,  // 0 Chờ xử lý, 1 xác nhận, 2 từ chối
+                'status' => 'bị hủy'
+            ]);
+
+            Mail::to($user->email)->send(new SendNotiRefundMail($user, $order));
+
+            return response()->json([
+                'message' => 'Cập nhật trạng thái yêu cầu order thành công',
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error("Error processing order: " . $e->getMessage());
+
+            return response()->json([
+                'message' => 'Đã xảy ra lỗi.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }
