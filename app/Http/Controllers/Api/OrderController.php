@@ -130,12 +130,14 @@ class OrderController extends Controller
                     $order->status == $validStatuses[$nextStatusIndex];
                     $order->save();
 
+
+                    Mail::to($user->email)->send(new SendNotiRefundMail($user, $order));
+
                     return response()->json([
                         'message' => 'Trạng thái đơn hàng đã được cập nhật, đơn hàng đã được hoàn tiền',
                         'data' => $order
                     ], 200);
 
-                    Mail::to($user->email)->send(new SendNotiRefundMail($user, $order));
                 }else {
                     return response()->json([
                         'message' => 'Lỗi hoàn tiền',
