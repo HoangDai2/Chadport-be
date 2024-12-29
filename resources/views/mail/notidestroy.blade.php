@@ -68,11 +68,11 @@
                         $data = json_decode($order->note_user, true);
                     @endphp
 
-                    <p><strong>Lý do:</strong> {{ $data['reason'] }}</p>
+                    <p><strong>Lý do:</strong> {{ $data['reason'] ?? 'Không có lý do gì thêm' }}</p>
                     <p>Yêu cầu hoàn về :</p>
-                    <p><strong>Số tài khoản:</strong> {{ $data['account_info']['account_number'] }}</p>
-                    <p><strong>Tên ngân hàng:</strong> {{ $data['account_info']['bank_name'] }}</p>
-                    <p><strong>Chủ tài khoản:</strong> {{ $data['account_info']['account_holder'] }}</p>
+                    <p><strong>Số tài khoản:</strong> {{ $data['account_info']['account_number'] ?? "" }}</p>
+                    <p><strong>Tên ngân hàng:</strong> {{ $data['account_info']['bank_name'] ?? "" }}</p>
+                    <p><strong>Chủ tài khoản:</strong> {{ $data['account_info']['account_holder']  ?? "" }}</p>
                     <p style="font-size: 14px; color: #999999; text-align: center;">
                         Xin lỗi vì những sự cố không đáng có! Cảm ơn quý khách.
                     </p>

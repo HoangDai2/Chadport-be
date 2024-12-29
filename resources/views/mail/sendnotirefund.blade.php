@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thông báo cập nhật trạng thái yêu cầu đơn hàng {{ $order->oder_number }}</title>
+    <title>Thông báo cập nhật trạng thái yêu cầu đơn hàng {{ $order->oder_number }} từ shop</title>
     <style>
         body {
             margin: 0;
@@ -71,7 +71,7 @@
                         @else
                         <strong>Từ chối hoàn số tiền: {{ $order->total_money }} VNĐ</strong>
                         <br>
-                        <span>Lý do: {{ $order->note_admin }}</span>
+                        <span>Lý do: {{ $order->note_admin ?? "Mặt hàng đã hết , rất mong quý khách thông cảm!" }}</span>
                         @endif
                     </p>
                     <p style="font-size: 14px; color: #999999; text-align: center;">

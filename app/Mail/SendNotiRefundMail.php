@@ -22,7 +22,7 @@ class SendNotiRefundMail extends Mailable
 
     public function build()
     {
-        return $this->subject('Thông báo yêu cầu đơn hàng ')
+        return $this->subject('Thông báo yêu cầu đơn hàng bị hủy từ shop')
                     ->view('mail.sendnotirefund')
                     ->with([
                         'user' => $this->user,
