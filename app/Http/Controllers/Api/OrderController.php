@@ -553,16 +553,40 @@ class OrderController extends Controller
             ], 500);
         }
     }
+
+    private function generateRequestId($length = 10) {
+        $characters = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+        $charactersLength = strlen($characters);
+        $randomString = '';
+    
+        for ($i = 0; $i < $length; $i++) {
+            $randomString .= $characters[rand(0, $charactersLength - 1)];
+        }
+    
+        return $randomString;
+    }
+
+    public function listRefund () {
+        try{
+
+            $data = Order::whereIn('check_refund', [0,1,2])
+                ->with(['user', 'voucher', 'orderDetails.productItem.product', 
+                'orderDetails.productItem.color', 
+                'orderDetails.productItem.size'])
+                ->get();
+
+            return response()->json([
+                'message' => 'Thông tin danh sách yêu cầu hoàn',
+                'data' => $data
+            ], 200);
+        }
+        catch (Exception $e) {
+        return response()->json([
+            'message' => 'Lỗi lấy danh sách yêu cầu hoàn',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+    }
 }
 
-    // private function generateRequestId($length = 10) {
-    //     $characters = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
-    //     $charactersLength = strlen($characters);
-    //     $randomString = '';
-    
-    //     for ($i = 0; $i < $length; $i++) {
-    //         $randomString .= $characters[rand(0, $charactersLength - 1)];
-    //     }
-    
-        // return $randomString;
     
