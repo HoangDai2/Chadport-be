@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\Category;
+use App\Models\Order;
+use App\Models\OrderDetail;
 use App\Models\ProductItems;
 use App\Models\ProductVariant;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -339,5 +342,111 @@ class ProductControllers extends Controller
             "Tổng sản phẩm"=> $totalPr
         ]);
     }
+
+    public function getTopSellingProductsByMonth($year, $month)
+    {
+        try {
+            // Lọc các đơn hàng có status "đã hoàn thành" và thuộc tháng và năm chỉ định
+            $orders = Order::where('status', 'đã hoàn thành')
+                ->whereYear('created_at', $year)
+                ->whereMonth('created_at', $month)
+                ->get();
+
+            // Khởi tạo mảng để lưu trữ thông tin sản phẩm thống kê
+            $productsStats = [];
+
+            // Duyệt qua tất cả các đơn hàng đã hoàn thành trong tháng
+            foreach ($orders as $order) {
+                // Lấy chi tiết đơn hàng của từng đơn
+                $orderDetails = OrderDetail::where('order_id', $order->id)->get();
+
+                // Duyệt qua các chi tiết đơn hàng
+                foreach ($orderDetails as $orderDetail) {
+                    $productItem = ProductItems::find($orderDetail->product_item_id);
+
+                    if ($productItem) {
+                        // Kiểm tra nếu sản phẩm đã có trong mảng thống kê
+                        if (isset($productsStats[$productItem->product_id])) {
+                            // Cộng dồn số lượng và doanh thu
+                            $productsStats[$productItem->product_id]['quantity'] += $orderDetail->quantity;
+                            $productsStats[$productItem->product_id]['total_revenue'] += $orderDetail->quantity * $orderDetail->price;
+                        } else {
+                            $product = $productItem->product;
+                            // Thêm thông tin sản phẩm vào mảng
+                            $productsStats[$productItem->product_id] = [
+                                'product_id' => $productItem->product_id,
+                                'product_name' => $product->name,
+                                'product_image' => $product->image_product,
+                                'quantity' => $orderDetail->quantity,
+                                'total_revenue' => $orderDetail->quantity * $orderDetail->price,
+                                'month' => $month,
+                                'year' => $year
+                            ];
+                        }
+                    }
+                }
+            }
+
+            // Chuyển mảng sản phẩm thành một mảng sắp xếp theo số lượng bán ra giảm dần
+            $sortedProducts = collect($productsStats)->sortByDesc('quantity')->values()->toArray();
+
+            // Trả về kết quả thống kê sản phẩm theo tháng
+            return response()->json([
+                'message' => 'Top selling products for ' . $month . '/' . $year,
+                'data' => $sortedProducts,
+            ], 200);
+        } catch (Exception $e) {
+            return response()->json([
+                'message' => 'Error fetching top selling products by month',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function getTopSearchedProducts($year, $month)
+    {
+        // Lọc sản phẩm theo năm, tháng và sắp xếp theo số lần tìm kiếm giảm dần
+        $products = Product::whereYear('search_count_date', $year)
+        ->whereMonth('search_count_date', $month)
+        ->orderBy('search_count', 'desc')
+        ->get();
+
+        // Nếu không có sản phẩm nào tìm thấy
+        if ($products->isEmpty()) {
+            return response()->json(['message' => 'Không có sản phẩm tìm kiếm trong thời gian này'], 404);
+        }
+
+        // Trả về danh sách sản phẩm tìm kiếm nhiều nhất
+        return response()->json(['data' => $products], 200);
+    }
+
+    public function incrementSearchCount(Request $request)
+    {
+        // Lấy product_id từ request
+        $productId = $request->input('id');
+
+        // Kiểm tra xem sản phẩm có tồn tại không
+        $product = Product::find($productId);
+
+        if ($product) {
+            // Tăng search_count lên 1
+            $product->increment('search_count');
+
+            // Lưu thời gian hiện tại vào cột search_count_date
+            $product->search_count_date = now();  // Lấy thời gian hiện tại mà không cần Carbon
+            $product->save();  // Lưu thông tin đã cập nhật
+
+            // Trả về dữ liệu cho FE (frontend)
+            return response()->json([
+                'message' => 'Search count and date updated successfully',
+                'product' => $product  // Trả về thông tin sản phẩm đã được cập nhật
+            ]);
+        } else {
+            return response()->json([
+                'message' => 'Product not found'
+            ], 404); // Trả về lỗi 404 nếu không tìm thấy sản phẩm
+        }
+    }
+
 }
 

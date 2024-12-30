@@ -647,4 +647,105 @@ class CartController extends Controller
         }
     }
 
+    public function getProductVariants($cartItemId)
+    {
+        // Lấy cart_item theo ID
+        $cartItem = Cart_item::find($cartItemId);
+
+        if ($cartItem) {
+            // Lấy thông tin product_item thông qua quan hệ
+            $productItem = $cartItem->productItem;
+
+            // Lấy product_id
+            $productId = $productItem->product_id;
+
+            // Lấy tất cả các biến thể của sản phẩm, kèm thông tin size và color
+            $variants = ProductItems::with(['size', 'color'])
+                ->where('product_id', $productId)
+                ->get();
+
+            return $variants; // Trả về biến thể sản phẩm
+        }
+
+        return null; // Nếu không tìm thấy sản phẩm trong giỏ hàng
+    }
+
+    public function updateQuantity(Request $request)
+    {
+        // Validate dữ liệu nhận từ request
+        $request->validate([
+            'cart_item_ids' => 'required|exists:cart_item,id', // Kiểm tra tồn tại cart_item_ids
+            'quantity' => 'required|integer|min:1', // Kiểm tra số lượng
+        ]);
+
+        // Tìm sản phẩm trong giỏ hàng theo cart_item_ids
+        $cartItem = Cart_item::find($request->cart_item_ids);
+
+        if (!$cartItem) {
+            return response()->json([
+                'message' => 'Sản phẩm không tồn tại trong giỏ hàng của bạn!',
+            ], 404);
+        }
+
+        // Lấy thông tin biến thể (variant) của sản phẩm
+        $variant = $cartItem->productItem; // Giả sử `productItem` là mối quan hệ tới bảng biến thể
+        $variantQuantity = $variant->quantity; // Lấy số lượng biến thể còn lại
+
+        // Kiểm tra xem số lượng trong giỏ hàng có lớn hơn số lượng còn lại của biến thể không
+        if ($request->quantity > $variantQuantity) {
+            return response()->json([
+                'message' => 'Số lượng bạn yêu cầu vượt quá số lượng còn lại của biến thể này!',
+            ], 400); // Trả về lỗi nếu vượt quá số lượng
+        }
+
+        // Nếu không vượt quá, cập nhật số lượng
+        $cartItem->quantity = $request->quantity;
+        $cartItem->save();
+
+        return response()->json([
+            'message' => 'Số lượng sản phẩm đã được cập nhật thành công!',
+            'cart_item' => $cartItem, // Trả lại thông tin sản phẩm đã cập nhật
+        ]);
+    }
+
+    public function updateSizeColor(Request $request)
+    {
+        // Validate dữ liệu đầu vào
+        $request->validate([
+            'cart_item_id' => 'required|exists:cart_item,id', // Kiểm tra cart_item tồn tại
+            'color_id' => 'required|exists:colors,id',       // Kiểm tra color_id hợp lệ
+            'size_id' => 'required|exists:sizes,id',         // Kiểm tra size_id hợp lệ
+        ]);
+
+        // Lấy thông tin sản phẩm trong giỏ hàng
+        $cartItem = Cart_item::find($request->cart_item_id);
+
+        if (!$cartItem) {
+            return response()->json([
+                'message' => 'Sản phẩm không tồn tại trong giỏ hàng!'
+            ], 404);
+        }
+
+        // Tìm biến thể sản phẩm dựa vào color_id và size_id
+        $productItem = ProductItems::where('product_id', $cartItem->productItem->product_id)
+            ->where('color_id', $request->color_id)
+            ->where('size_id', $request->size_id)
+            ->first();
+
+        if (!$productItem) {
+            return response()->json([
+                'message' => 'Biến thể không tồn tại!'
+            ], 404);
+        }
+
+        // Cập nhật product_item_id trong bảng cart_item
+        $cartItem->product_item_id = $productItem->id;
+        $cartItem->save();
+
+        return response()->json([
+            'message' => 'Biến thể trong giỏ hàng đã được cập nhật thành công!',
+            'cart_item' => $cartItem
+        ]);
+    }
+
 }

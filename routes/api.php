@@ -73,6 +73,9 @@ Route::group(['prefix' => 'user'], function () {
         Route::post('/add-coupon-cart', [CartController::class, 'addCouponCart']);
         Route::post('/payment', [CartController::class, 'payment']);
 
+        Route::post('/update_cart_quantity', [CartController::class, 'updateQuantity']);
+        Route::post('/updateSizeColor', [CartController::class, 'updateSizeColor']);
+
         Route::post('/buynows', [CartController::class, 'buyNow']);
 
         Route::post('/remove-voucher', [CartController::class, 'removeVoucher']);
@@ -157,3 +160,7 @@ Route::get('/all-ordersAdmin', [OrderController::class, 'getAllOrdersAdmin']);
 Route::get('/all-ordersAdmin/{id}', [OrderController::class, 'getOrderById']);
 Route::get('/user-status', [OrderController::class, 'getOrdersByUserAndStatus']);
 
+Route::get('top-selling-products-by-month/{year}/{month}', [OrderController::class, 'getTopSellingProductsByMonth']);
+Route::post('log-search', [ProductControllers::class, 'incrementSearchCount']);
+Route::get('getTopSearchedProducts/{year}/{month}', [ProductControllers::class, 'getTopSearchedProducts']);
+Route::get('getProductVariants/{cartItemId}', [CartController::class, 'getProductVariants']);
