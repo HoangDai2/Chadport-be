@@ -40,6 +40,8 @@ Route::group(['prefix' => 'admin'], function () {
             Route::get('/detail', [OrderController::class, 'detail']);
             Route::post('/status', [OrderController::class, 'edit']);
             Route::get('/delete', [OrderController::class, 'delete']);
+            Route::get('/list_refund', [OrderController::class, 'listRefund']);
+            Route::post('/confirm_refund', [OrderController::class, 'confirmRefund']);
            
         });
     });
@@ -58,6 +60,8 @@ Route::group(['prefix' => 'user'], function () {
         Route::post('/update', [UserController::class, 'update']); 
         Route::post('/logout', [UserController::class, 'logout']);
         Route::post('/refresh', [UserController::class, 'refresh']);
+        Route::get('/my_orders', [UserController::class, 'myOrders']);
+        Route::post('/change_status_order', [UserController::class, 'changeMyOrder']);
         Route::post('/add_to_cart', [CartController::class, 'addToCart']);
         Route::post('/checkcart', [CartController::class, 'moveToCheckout']);
         Route::get('/getcheckcart', [CartController::class, 'Getcheckout']);
@@ -68,6 +72,9 @@ Route::group(['prefix' => 'user'], function () {
         Route::post('/payment', [CartController::class, 'payment']);
         Route::post('/add-coupon-cart', [CartController::class, 'addCouponCart']);
         Route::post('/payment', [CartController::class, 'payment']);
+
+        Route::post('/update_cart_quantity', [CartController::class, 'updateQuantity']);
+        Route::post('/updateSizeColor', [CartController::class, 'updateSizeColor']);
 
         Route::post('/buynows', [CartController::class, 'buyNow']);
 
@@ -155,3 +162,7 @@ Route::get('/all-ordersAdmin', [OrderController::class, 'getAllOrdersAdmin']);
 Route::get('/all-ordersAdmin/{id}', [OrderController::class, 'getOrderById']);
 Route::get('/user-status', [OrderController::class, 'getOrdersByUserAndStatus']);
 
+Route::get('top-selling-products-by-month/{year}/{month}', [OrderController::class, 'getTopSellingProductsByMonth']);
+Route::post('log-search', [ProductControllers::class, 'incrementSearchCount']);
+Route::get('getTopSearchedProducts/{year}/{month}', [ProductControllers::class, 'getTopSearchedProducts']);
+Route::get('getProductVariants/{cartItemId}', [CartController::class, 'getProductVariants']);

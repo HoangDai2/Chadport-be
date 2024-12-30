@@ -6,17 +6,22 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\LoginRequest;
 use App\Http\Requests\Api\RegisterRequest;
 use App\Http\Requests\Api\UpdateUserRequest;
+use App\Mail\NotiDestroyMail;
 use App\Mail\RegisterUserMail;
+use App\Models\Order;
 use App\Models\User;
 use App\Traits\ImageUploadTrait;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Tymon\JWTAuth\Exceptions\JWTException;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Tymon\JWTAuth\Exceptions\TokenExpiredException;
 use Tymon\JWTAuth\Exceptions\TokenInvalidException;
 
@@ -338,6 +343,70 @@ class UserController extends Controller
         }
     }
 
+
+    public function myOrders()
+    {
+        try{
+            $data = Order::with(['user', 'voucher', 'orderDetails.productItem.product', 
+                'orderDetails.productItem.color', 
+                'orderDetails.productItem.size'])
+                ->where('user_id', Auth::user()->id)
+                ->get();
+
+                return response()->json([
+                    'message' => 'Danh sách đơn hàng của bạn',
+                    'data' => $data
+                ], 200);
+
+        } catch (\Exception $e) {
+            Log::error("Error processing order: " . $e->getMessage());
+
+            return response()->json([
+                'message' => 'Đã xảy ra lỗi.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function changeMyOrder(Request $request)
+    {
+        try{
+            $userId = auth()->id();
+            $user = auth()->user();
+
+            $order = Order::where('id', $request->order_id)
+                ->where('user_id', $userId)
+                ->first();
+
+            if (empty($order)) {
+                return response()->json([
+                    'message' => 'Không tìm thấy order',
+                ], 404);
+            }
+
+            $order->update([
+                'note_user' => json_encode($request->note),
+                'check_refund' => $request->check_refund  // 0 là chở xử lý - 1 đã hoàn tiền
+            ]);
+
+            $emailAdmin = 'kiennt18nd@gmail.com';
+            Mail::to($emailAdmin)->send(new NotiDestroyMail($user, $order));
+
+            return response()->json([
+                'message' => 'Cập nhật hủy đơn thành công, vui lòng chờ shop xử lý!',
+                'data' => $order
+            ], 200);
+
+        }
+        catch (\Exception $e) {
+            Log::error("Error processing order: " . $e->getMessage());
+
+            return response()->json([
+                'message' => 'Đã xảy ra lỗi.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
     
 
 }

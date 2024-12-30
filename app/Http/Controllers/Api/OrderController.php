@@ -3,16 +3,18 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\SendNotiRefundMail;
 use App\Models\Order;
 use App\Models\OrderDetail;
 use App\Models\ProductItems;
-
+use App\Models\User;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Mail;
 
 class OrderController extends Controller
 {
@@ -115,7 +117,7 @@ class OrderController extends Controller
     
         try {
             $order = Order::findOrFail($request->input('order_id'));
-    
+            $user = User::where('id', $order->user_id)->first();
             $currentStatusIndex = array_search($order->status, $validStatuses);
             $nextStatusIndex = $request->input('status');
     
@@ -128,10 +130,14 @@ class OrderController extends Controller
                     $order->status == $validStatuses[$nextStatusIndex];
                     $order->save();
 
+
+                    Mail::to($user->email)->send(new SendNotiRefundMail($user, $order));
+
                     return response()->json([
                         'message' => 'Trạng thái đơn hàng đã được cập nhật, đơn hàng đã được hoàn tiền',
                         'data' => $order
                     ], 200);
+
                 }else {
                     return response()->json([
                         'message' => 'Lỗi hoàn tiền',
@@ -242,7 +248,6 @@ class OrderController extends Controller
     }
 
     public function editBillStatus(Request $request)
-
     {
 
         $validStatuses = [
@@ -295,7 +300,8 @@ class OrderController extends Controller
             ], 500);
         }
     }
-  public function getOrdersByUserAndStatus(Request $request)
+
+    public function getOrdersByUserAndStatus(Request $request)
     {
         try {
             // Xác thực JWT và lấy thông tin user từ token
@@ -327,7 +333,7 @@ class OrderController extends Controller
             $orderDetails = [];
             foreach ($orders as $order) {
                 // Lấy danh sách chi tiết đơn hàng
-                $details = OrderDetail::where('id', $order->id)
+                $details = OrderDetail::where('order_id', $order->id)
                     ->get()
                     ->map(function ($orderDetail) {
                         // Lấy thông tin sản phẩm từ bảng ProductItems qua product_item_id
@@ -337,6 +343,7 @@ class OrderController extends Controller
                         if ($productItem) {
                             $product = $productItem->product;
                             return [
+                                'order_id' => $orderDetail->order_id, // Thêm order_id
                                 'product_id' => $productItem->product_id,
                                 'product_name' => $product->name, // Lấy tên sản phẩm từ bảng Product
                                 'product_image' => $product->image_product, // Lấy ảnh sản phẩm từ bảng Product
@@ -383,7 +390,8 @@ class OrderController extends Controller
         }
     }
 
-    public function getAllOrdersAdmin(Request $request)    {
+    public function getAllOrdersAdmin(Request $request)    
+    {
         try {
             $orders = Order::orderBy('created_at', 'desc')->get();
 
@@ -454,7 +462,35 @@ class OrderController extends Controller
         }
     }
 
-
+    public function confirmRefund(Request $request)
+    {
+        try{
+            $reason = $request->reason;
+            $order = Order::where('id', $request->order_id)->first();
+            $user = User::where('id', $order->user_id)->first();
+            if(empty($order)){
+                return response()->json([
+                    'message' => 'Không tìm thấy order',
+                ], 404);
+            }
+            $order->update([
+                'note_admin' => $reason,
+                'check_refund' => $request->check_refund,  // 0 Chờ xử lý, 1 xác nhận, 2 từ chối
+                'status' => 'bị hủy'
+            ]);
+            Mail::to($user->email)->send(new SendNotiRefundMail($user, $order));
+            return response()->json([
+                'message' => 'Cập nhật trạng thái yêu cầu order thành công',
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error("Error processing order: " . $e->getMessage());
+            return response()->json([
+                'message' => 'Đã xảy ra lỗi.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    
     public function getOrderById($orderId)
     {
         try {
@@ -521,16 +557,101 @@ class OrderController extends Controller
             ], 500);
         }
     }
+
+    private function generateRequestId($length = 10) {
+        $characters = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+        $charactersLength = strlen($characters);
+        $randomString = '';
+    
+        for ($i = 0; $i < $length; $i++) {
+            $randomString .= $characters[rand(0, $charactersLength - 1)];
+        }
+    
+        return $randomString;
+    }
+
+    public function listRefund () 
+    {
+        try{
+            $data = Order::whereIn('check_refund', [0,1,2])
+                ->with(['user', 'voucher', 'orderDetails.productItem.product', 
+                'orderDetails.productItem.color', 
+                'orderDetails.productItem.size'])
+                ->get();
+
+            return response()->json([
+                'message' => 'Thông tin danh sách yêu cầu hoàn',
+                'data' => $data
+            ], 200);
+        }
+        catch (Exception $e) {
+        return response()->json([
+            'message' => 'Lỗi lấy danh sách yêu cầu hoàn',
+            'error' => $e->getMessage()
+        ], 500);
+        }
+    }
+
+    public function getTopSellingProductsByMonth($year, $month)
+    {
+        try {
+            // Lọc các đơn hàng có status "đã hoàn thành" và thuộc tháng và năm chỉ định
+            $orders = Order::where('status', 'đã hoàn thành')
+                ->whereYear('created_at', $year)
+                ->whereMonth('created_at', $month)
+                ->get();
+
+            // Khởi tạo mảng để lưu trữ thông tin sản phẩm thống kê
+            $productsStats = [];
+
+            // Duyệt qua tất cả các đơn hàng đã hoàn thành trong tháng
+            foreach ($orders as $order) {
+                // Lấy chi tiết đơn hàng của từng đơn
+                $orderDetails = OrderDetail::where('order_id', $order->id)->get();
+
+                // Duyệt qua các chi tiết đơn hàng
+                foreach ($orderDetails as $orderDetail) {
+                    $productItem = ProductItems::find($orderDetail->product_item_id);
+
+                    if ($productItem) {
+                        // Kiểm tra nếu sản phẩm đã có trong mảng thống kê
+                        if (isset($productsStats[$productItem->product_id])) {
+                            // Cộng dồn số lượng và doanh thu
+                            $productsStats[$productItem->product_id]['quantity'] += $orderDetail->quantity;
+                            $productsStats[$productItem->product_id]['total_revenue'] += $orderDetail->quantity * $orderDetail->price;
+                        } else {
+                            $product = $productItem->product;
+                            // Thêm thông tin sản phẩm vào mảng
+                            $productsStats[$productItem->product_id] = [
+                                'product_id' => $productItem->product_id,
+                                'product_name' => $product->name,
+                                'product_image' => $product->image_product,
+                                'quantity' => $orderDetail->quantity,
+                                'total_revenue' => $orderDetail->quantity * $orderDetail->price,
+                                'month' => $month,
+                                'year' => $year
+                            ];
+                        }
+                    }
+                }
+            }
+
+            // Chuyển mảng sản phẩm thành một mảng sắp xếp theo số lượng bán ra giảm dần
+            $sortedProducts = collect($productsStats)->sortByDesc('quantity')->values()->toArray();
+
+            // Trả về kết quả thống kê sản phẩm theo tháng
+            return response()->json([
+                'message' => 'Top selling products for ' . $month . '/' . $year,
+                'data' => $sortedProducts,
+            ], 200);
+        } catch (Exception $e) {
+            return response()->json([
+                'message' => 'Error fetching top selling products by month',
+        'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
 }
 
-    // private function generateRequestId($length = 10) {
-    //     $characters = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
-    //     $charactersLength = strlen($characters);
-    //     $randomString = '';
     
-    //     for ($i = 0; $i < $length; $i++) {
-    //         $randomString .= $characters[rand(0, $charactersLength - 1)];
-    //     }
-    
-    //     return $randomString;
-    // }
