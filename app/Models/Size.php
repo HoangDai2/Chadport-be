@@ -8,12 +8,8 @@ use Illuminate\Database\Eloquent\Model;
 class Size extends Model
 {
     use HasFactory;
-
-    
-
-    use HasFactory;
-
-    protected $fillable = ['name', 'date_create', 'date_update'];
+    protected $table = 'sizes';
+    protected $fillable = ['name', 'created_at', 'updated_at	'];
 
     public function variants()
     {

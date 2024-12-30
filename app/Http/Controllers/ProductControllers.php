@@ -342,6 +342,28 @@ class ProductControllers extends Controller
             "Tổng sản phẩm"=> $totalPr
         ]);
     }
+  
+        // Hàm khôi phục sản phẩm đã xóa
+        public function restoreCategory($id) {
+            Product::withTrashed()->find($id)->restore();
+            return response()->json([
+                'message' => 'Khôi phục thành công',
+            ], 200);
+        }
+        //Hàm xóa vĩnh viễn
+        public function forceDelete($id) {
+            Product::withTrashed()->find($id)->forceDelete();
+            return response()->json([
+                'message' => 'Xóa vĩnh viễn thành công',
+            ], 200);
+        }
+        // Hàm lấy tất cả sản phẩm đã xóa
+        public function getDeletedCategories() {
+            $product = Product::onlyTrashed()->get();
+            return response()->json([
+                'data' => $product
+            ], 200);
+        }
 
     public function getTopSellingProductsByMonth($year, $month)
     {

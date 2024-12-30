@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\CategoryRequest;
 use App\Http\Resources\CategoryResource;
 use App\Models\Category;
+use App\Models\Product;
 use Illuminate\Http\Request;
 
 class CategoryController extends Controller
@@ -97,7 +98,13 @@ class CategoryController extends Controller
     {
         // Find the category by ID
         $category = Category::find($id);
-
+        // Kiểm tra có sản phẩm thuốc danh mục này hay k, nếu có thì k được xóa
+        $product = Product::where('category_id', $id)->count();
+        if ($product > 0) {
+            return response()->json([
+                'message' => 'Không thể xóa danh mục này vì có sản phẩm thuộc danh mục này',
+            ], 400);
+        }
         // Check if the category exists
         if (!$category) {
             return response()->json([
@@ -112,5 +119,27 @@ class CategoryController extends Controller
             'data' => $category
         ], 200);
     }
+    // Hàm khôi phục danh mục đã xóa
+    public function restoreCategory($id) {
+        Category::withTrashed()->find($id)->restore();
+        return response()->json([
+            'message' => 'Khôi phục thành công',
+        ], 200);
+    }
+    //Hàm xóa vĩnh viễn
+    public function forceDelete($id) {
+        Category::withTrashed()->find($id)->forceDelete();
+        return response()->json([
+            'message' => 'Xóa vĩnh viễn thành công',
+        ], 200);
+    }
+    // Hàm lấy tất cả danh mục đã xóa
+    public function getDeletedCategories() {
+        $categories = Category::onlyTrashed()->get();
+        return response()->json([
+            'data' => $categories
+        ], 200);
+    }
+    
 
 }

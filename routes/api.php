@@ -85,7 +85,7 @@ Route::group(['prefix' => 'user'], function () {
         Route::post('add/comments', [ApiCommentController::class, 'addComments']);
         Route::get('getall/comments', [ApiCommentController::class, 'getCommentsByProduct']);
         Route::delete('delete/comments/{comment_id}', [ApiCommentController::class, 'deleteComment']);
-
+        Route::post('update/comments/{comment_id}', [ApiCommentController::class, 'editCommentByUser']);
         
     }); 
 
@@ -108,7 +108,9 @@ Route::get('/categories/{id}', [CategoryController::class, 'show']);
 Route::get('getall/categories', [CategoryController::class, 'GetAll'])->name('categories.GetAll');
 Route::put('categories/{id}', [CategoryController::class, 'update'])->name('categories.updates');
 Route::delete('categories/{id}', [CategoryController::class, 'destroy'])->name('categories.destroy');
-
+Route::post('/category/restore/{id}', [CategoryController::class, 'restoreCategory']);
+Route::post('/category/forceDelete/{id}', [CategoryController::class, 'forceDelete']);
+Route::get('/getDeletedCategories', [CategoryController::class, 'getDeletedCategories']);
 
 // Color routes
 Route::post('colors', [ColorController::class, 'createColor']); // 
