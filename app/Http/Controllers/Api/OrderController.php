@@ -327,7 +327,7 @@ class OrderController extends Controller
             $orderDetails = [];
             foreach ($orders as $order) {
                 // Lấy danh sách chi tiết đơn hàng
-                $details = OrderDetail::where('id', $order->id)
+                $details = OrderDetail::where('order_id', $order->id)
                     ->get()
                     ->map(function ($orderDetail) {
                         // Lấy thông tin sản phẩm từ bảng ProductItems qua product_item_id
@@ -338,6 +338,7 @@ class OrderController extends Controller
                             $product = $productItem->product;
                             return [
                                 'product_id' => $productItem->product_id,
+                                'product_item_id' => $productItem->id,
                                 'product_name' => $product->name, // Lấy tên sản phẩm từ bảng Product
                                 'product_image' => $product->image_product, // Lấy ảnh sản phẩm từ bảng Product
                                 'color_id' => $productItem->color_id,
@@ -359,6 +360,7 @@ class OrderController extends Controller
                 // Thêm thông tin chi tiết đơn hàng vào mảng
                 $orderDetails[] = [
                     'id' => $order->id,
+                    "product_item_id" => $order->product_item_id,
                     'order_number' => $order->order_number,
                     'status' => $order->status,
                     'total_money' => $order->total_money,
