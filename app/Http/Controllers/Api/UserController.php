@@ -389,7 +389,7 @@ class UserController extends Controller
                 'check_refund' => $request->check_refund  // 0 là chở xử lý - 1 đã hoàn tiền
             ]);
 
-            $emailAdmin = 'kiennt18nd@gmail.com';
+            $emailAdmin = 'quyendvph34264@gmail.com';
             Mail::to($emailAdmin)->send(new NotiDestroyMail($user, $order));
 
             return response()->json([

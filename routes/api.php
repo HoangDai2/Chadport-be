@@ -40,13 +40,11 @@ Route::group(['prefix' => 'admin'], function () {
             Route::get('/detail', [OrderController::class, 'detail']);
             Route::post('/status', [OrderController::class, 'edit']);
             Route::get('/delete', [OrderController::class, 'delete']);
-            Route::get('/list_refund', [OrderController::class, 'listRefund']);
-            Route::post('/confirm_refund', [OrderController::class, 'confirmRefund']);
-           
         });
     });
 });
-
+Route::get('/list_refund', [OrderController::class, 'listRefund']);
+Route::post('/confirm_refund', [OrderController::class, 'confirmRefund']);
 
 // Group user routes
 Route::group(['prefix' => 'user'], function () {
@@ -71,7 +69,6 @@ Route::group(['prefix' => 'user'], function () {
         Route::post('/update_quatity_cart', [CartController::class, 'updateQuantityCart']);
         Route::post('/payment', [CartController::class, 'payment']);
         Route::post('/add-coupon-cart', [CartController::class, 'addCouponCart']);
-        Route::post('/payment', [CartController::class, 'payment']);
 
         Route::post('/update_cart_quantity', [CartController::class, 'updateQuantity']);
         Route::post('/updateSizeColor', [CartController::class, 'updateSizeColor']);
