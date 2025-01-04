@@ -344,7 +344,7 @@ class OrderController extends Controller
                             $product = $productItem->product;
                             return [
                                 'order_id' => $orderDetail->order_id, // Thêm order_id
-                                'product_id' => $productItem->product_id,
+                                'product_item_id' => $productItem->id,
                                 'product_name' => $product->name, // Lấy tên sản phẩm từ bảng Product
                                 'product_image' => $product->image_product, // Lấy ảnh sản phẩm từ bảng Product
                                 'color_id' => $productItem->color_id,
@@ -570,27 +570,54 @@ class OrderController extends Controller
         return $randomString;
     }
 
-    public function listRefund () 
-    {
-        try{
-            $data = Order::whereIn('check_refund', [0,1,2])
-                ->with(['user', 'voucher', 'orderDetails.productItem.product', 
-                'orderDetails.productItem.color', 
-                'orderDetails.productItem.size'])
-                ->get();
+    // public function listRefund () 
+    // {
+    //     try{
+    //         $data = Order::whereIn('check_refund', [0,1,2])
+    //             ->with(['user', 'voucher', 'orderDetails.productItem.product', 
+    //             'orderDetails.productItem.color', 
+    //             'orderDetails.productItem.size'])
+    //             ->get();
 
+    //         return response()->json([
+    //             'message' => 'Thông tin danh sách yêu cầu hoàn',
+    //             'data' => $data
+    //         ], 200);
+    //     }
+    //     catch (Exception $e) {
+    //     return response()->json([
+    //         'message' => 'Lỗi lấy danh sách yêu cầu hoàn',
+    //         'error' => $e->getMessage()
+    //     ], 500);
+    //     }
+    // }
+
+    public function listRefund()
+    {
+        try {
+            // Lấy danh sách các đơn hàng có check_refund = 0
+            $data = Order::where('check_refund', 0) // Điều kiện lọc
+                ->with([
+                    'user',
+                    'voucher',
+                    'orderDetails.productItem.product',
+                    'orderDetails.productItem.color',
+                    'orderDetails.productItem.size'
+                ])
+                ->get();
+    
             return response()->json([
-                'message' => 'Thông tin danh sách yêu cầu hoàn',
+                'message' => 'Thông tin danh sách yêu cầu hoàn với check_refund = 0',
                 'data' => $data
             ], 200);
-        }
-        catch (Exception $e) {
-        return response()->json([
-            'message' => 'Lỗi lấy danh sách yêu cầu hoàn',
-            'error' => $e->getMessage()
-        ], 500);
+        } catch (Exception $e) {
+            return response()->json([
+                'message' => 'Lỗi lấy danh sách yêu cầu hoàn',
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
+    
 
     public function getTopSellingProductsByMonth($year, $month)
     {

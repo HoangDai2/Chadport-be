@@ -222,9 +222,9 @@ class CartController extends Controller
     
         // Lấy các sản phẩm đã được chọn (checked = true)
         $cartItems = Cart_item::where('cart_id', $cart->id)
-                              ->where('checked', true)
-                              ->get();
-    
+                            ->where('checked', true)
+                            ->get();
+        
         // Tính tổng tiền thanh toán
         $totalAmount = $cartItems->sum('price'); // Tổng tiền thanh toán
     
@@ -494,8 +494,12 @@ class CartController extends Controller
 
             DB::commit();
 
-            return response()->json(['message' => 'Đơn hàng của bạn đã được đặt thành công'], 200);
-
+            return response()->json([
+                'message' => 'Đơn hàng của bạn đã được đặt thành công',
+                'order_id' => $order, // Trả về order_id
+                'order_number' => $orderNumber, // Trả về số đơn hàng để sử dụng
+            ], 200);
+            
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error("Error processing order: " . $e->getMessage());
