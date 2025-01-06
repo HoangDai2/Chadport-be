@@ -344,7 +344,7 @@ class ProductControllers extends Controller
     }
   
         // Hàm khôi phục sản phẩm đã xóa
-        public function restoreCategory($id) {
+        public function restoreProduct($id) {
             Product::withTrashed()->find($id)->restore();
             return response()->json([
                 'message' => 'Khôi phục thành công',
@@ -358,7 +358,7 @@ class ProductControllers extends Controller
             ], 200);
         }
         // Hàm lấy tất cả sản phẩm đã xóa
-        public function getDeletedCategories() {
+        public function getDeletedProducts() {
             $product = Product::onlyTrashed()->get();
             return response()->json([
                 'data' => $product

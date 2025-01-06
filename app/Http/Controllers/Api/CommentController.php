@@ -86,12 +86,23 @@ class CommentController extends Controller
 
     }
 
-    // hàm lấy all comments sử dụng trong trang chi tiết sản phẩm (hàm lấy bình luận của tất cả user)
-    public function getCommentsByProduct() {
-        $comments = Comment::all();
+    // Hàm lấy tất cả bình luận của sản phẩm
+    private function getCommentsByProductId($productId) {
+        return DB::table('comment')
+            ->join('product_items', 'comment.product_item_id', '=', 'product_items.id')
+            ->join('users', 'comment.user_id', '=', 'users.id')
+            ->where('product_items.product_id', $productId)
+            ->select('comment.content', 'comment.rating', 'comment.image',DB::raw("CONCAT(users.firt_name, ' ', users.last_name) as name ") )
+            ->get();
+    }
+
+    // truyền product_id vào để lấy ra tất cả bình luận của sản phẩm đó
+    public function showComments($productId) {
+        $comments = $this->getCommentsByProductId($productId);
         return response()->json([
-            'data' => $comments
-        ], 200);
+            'product_id' => $productId,
+            'comments' => $comments,
+        ]);
     }
 
     //hàm lấy tắt cả các bình luận của user 

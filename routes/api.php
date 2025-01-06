@@ -83,6 +83,7 @@ Route::group(['prefix' => 'user'], function () {
         Route::get('getall/comments', [ApiCommentController::class, 'getCommentsByProduct']);
         Route::delete('delete/comments/{comment_id}', [ApiCommentController::class, 'deleteComment']);
         Route::post('update/comments/{comment_id}', [ApiCommentController::class, 'editCommentByUser']);
+        Route::get('commentsByProductId/{productId}',[ApiCommentController::class, 'showComments']);
         
     }); 
 
@@ -96,7 +97,9 @@ Route::get('list/products', [ProductControllers::class, 'showProduct']);
 Route::get('shop/products', [ProductControllers::class, 'showShopProducts']);
 Route::get('showdetail/products/{id}', [ProductControllers::class, 'showDetail']);
 Route::delete('delete/products/{id}', [ProductControllers::class, 'destroy']);
+Route::post('restore/products/{id}', [ProductControllers::class, 'restoreProduct']);
 Route::post('update/products/{id}', [ProductControllers::class, 'updateProduct']);
+Route::get('/getDeletedProducts', [ProductControllers::class, 'getDeletedProducts']);
 Route::get('/products/category/{category_id}', [ProductControllers::class, 'getProductsByCategory']);
 
 // Category routes
@@ -104,7 +107,7 @@ Route::post('categories', [CategoryController::class, 'create'])->name('categori
 Route::get('/categories/{id}', [CategoryController::class, 'show']);
 Route::get('getall/categories', [CategoryController::class, 'GetAll'])->name('categories.GetAll');
 Route::put('categories/{id}', [CategoryController::class, 'update'])->name('categories.updates');
-Route::delete('categories/{id}', [CategoryController::class, 'destroy'])->name('categories.destroy');
+Route::delete('categories/delete/{id}', [CategoryController::class, 'destroy'])->name('categories.destroy');
 Route::post('/category/restore/{id}', [CategoryController::class, 'restoreCategory']);
 Route::post('/category/forceDelete/{id}', [CategoryController::class, 'forceDelete']);
 Route::get('/getDeletedCategories', [CategoryController::class, 'getDeletedCategories']);
