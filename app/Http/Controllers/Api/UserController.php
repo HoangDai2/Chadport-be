@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 use Tymon\JWTAuth\Exceptions\TokenExpiredException;
 use Tymon\JWTAuth\Exceptions\TokenInvalidException;
 
@@ -384,8 +385,29 @@ class UserController extends Controller
                 ], 404);
             }
 
+            if($request->hasFile('file'))
+            {
+                $request->validate([
+                    'file' => 'file|mimes:jpg,jpeg,png,mp4|max:5120'
+                ]);
+
+                $url_file = $this->handleUploadImage($request, 'file', 'Ghi_chu_KH');
+            }
+
+            $note = [
+                "reason" => $request->reason ?? "",
+                "account_info" => [
+                    "account_number" => $request->account_number ?? "",
+                    "bank_name" => $request->bank_name ?? "",
+                    "account_holder" => $request->account_holder ?? "",
+                ],
+                "file_note" => $url_file
+            ];
+
+            $note_json = json_encode($note);
+
             $order->update([
-                'note_user' => json_encode($request->note),
+                'note_user' => $note_json,
                 'check_refund' => $request->check_refund  // 0 là chở xử lý - 1 đã hoàn tiền
             ]);
 
