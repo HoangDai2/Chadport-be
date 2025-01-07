@@ -161,3 +161,7 @@ Route::get('top-selling-products-by-month/{year}/{month}', [OrderController::cla
 Route::post('log-search', [ProductControllers::class, 'incrementSearchCount']);
 Route::get('getTopSearchedProducts/{year}/{month}', [ProductControllers::class, 'getTopSearchedProducts']);
 Route::get('getProductVariants/{cartItemId}', [CartController::class, 'getProductVariants']);
+
+Route::get('/login/google', [UserController::class, 'redirectToGoogle']);
+Route::post('/login/googlejwt', [UserController::class, 'googleLoginJWT']);
+Route::get('/login/google/callback', [UserController::class, 'handleGoogleCallback']);
