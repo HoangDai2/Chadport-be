@@ -410,93 +410,93 @@ class UserController extends Controller
         }
     }
     
-    public function redirectToGoogle()
-    {
-        return Socialite::driver('google')->redirect();
-    }
-    public function handleGoogleCallback()
-    {
-        try {
-            $user = Socialite::driver('google')->user();
-            // return $user->id;
-            $finduser = User::where('google_id', $user->id)->first();
-            $nameParts = explode(' ', $user->name);
-            $firstName = array_shift($nameParts); // Lấy từ đầu tiên
-            $lastName = implode(' ', $nameParts); // Phần còn lại là họ
+    // public function redirectToGoogle()
+    // {
+    //     return Socialite::driver('google')->redirect();
+    // }
+    // public function handleGoogleCallback()
+    // {
+    //     try {
+    //         $user = Socialite::driver('google')->user();
+    //         // return $user->id;
+    //         $finduser = User::where('google_id', $user->id)->first();
+    //         $nameParts = explode(' ', $user->name);
+    //         $firstName = array_shift($nameParts); // Lấy từ đầu tiên
+    //         $lastName = implode(' ', $nameParts); // Phần còn lại là họ
 
-            if ($finduser) {
-                Auth::login($finduser);
-                $user = User::where('email')->first();
+    //         if ($finduser) {
+    //             Auth::login($finduser);
+    //             $user = User::where('email')->first();
 
-                JWTAuth::factory()->setTTL(60); // Đặt thời gian sống của token
-                // $token = JWTAuth::claims(['sub' => $user->id]);
-                $token = JWTAuth::fromUser($user);
-                if (!$token) {
-                    return response()->json(['error' => 'Invalid Credentials'], 401);
-                }
-                return redirect()->intended('http://localhost:5173');
-            } else {
-                $newUser = User::updateOrCreate(['email' => $user->email], [
-                    'google_id' => $user->id,
-                    'firt_name' => $firstName,
-                    'last_name' => $lastName,
-                    'role_id' => 4,
-                    'password' => encrypt('123456789')
+    //             JWTAuth::factory()->setTTL(60); // Đặt thời gian sống của token
+    //             // $token = JWTAuth::claims(['sub' => $user->id]);
+    //             $token = JWTAuth::fromUser($user);
+    //             if (!$token) {
+    //                 return response()->json(['error' => 'Invalid Credentials'], 401);
+    //             }
+    //             return redirect()->intended('http://localhost:5173');
+    //         } else {
+    //             $newUser = User::updateOrCreate(['email' => $user->email], [
+    //                 'google_id' => $user->id,
+    //                 'firt_name' => $firstName,
+    //                 'last_name' => $lastName,
+    //                 'role_id' => 4,
+    //                 'password' => encrypt('123456789')
 
-                ]);
-                Auth::login($newUser);
-                return redirect()->intended('http://localhost:5173');
-            }
-        } catch (Exception $e) {
-            dd($e->getMessage());
-        }
-    }
-    public function googleLoginJWT(Request $request)
-    {
-        $token = $request->input('token');
-        // dd($token);
-        // Tạo client Google API
-        $client = new Client();
-        $client->setClientId(env('GOOGLE_CLIENT_ID')); // Client ID của bạn
+    //             ]);
+    //             Auth::login($newUser);
+    //             return redirect()->intended('http://localhost:5173');
+    //         }
+    //     } catch (Exception $e) {
+    //         dd($e->getMessage());
+    //     }
+    // }
+    // public function googleLoginJWT(Request $request)
+    // {
+    //     $token = $request->input('token');
+    //     // dd($token);
+    //     // Tạo client Google API
+    //     $client = new Client();
+    //     $client->setClientId(env('GOOGLE_CLIENT_ID')); // Client ID của bạn
 
-        // Xác thực token
-        $payload = $client->verifyIdToken($token);
-        if ($payload) {
-            $email = $payload['email'];
-            $name = $payload['name'];
+    //     // Xác thực token
+    //     $payload = $client->verifyIdToken($token);
+    //     if ($payload) {
+    //         $email = $payload['email'];
+    //         $name = $payload['name'];
 
-            // Tách tên thành tên đầu và họ
-            $nameParts = explode(' ', $name);
-            $firstName = array_shift($nameParts); // Lấy tên đầu tiên
-            $lastName = implode(' ', $nameParts); // Lấy họ (phần còn lại)
+    //         // Tách tên thành tên đầu và họ
+    //         $nameParts = explode(' ', $name);
+    //         $firstName = array_shift($nameParts); // Lấy tên đầu tiên
+    //         $lastName = implode(' ', $nameParts); // Lấy họ (phần còn lại)
 
-            $id = $payload['sub'];
+    //         $id = $payload['sub'];
 
-            // Tìm hoặc tạo người dùng
-            $user = User::firstOrCreate(
-                ['email' => $email],
-                [
-                    'google_id' => $id,
-                    'firt_name' => $firstName, // Sử dụng tên đầu
-                    'last_name' => $lastName,   // Lưu họ
-                    'email' => $email,
-                    'password' => encrypt('123456789'),
-                    'role_id' => 3,
-                    'status' => 'active',
-                ]
-            );
+    //         // Tìm hoặc tạo người dùng
+    //         $user = User::firstOrCreate(
+    //             ['email' => $email],
+    //             [
+    //                 'google_id' => $id,
+    //                 'firt_name' => $firstName, // Sử dụng tên đầu
+    //                 'last_name' => $lastName,   // Lưu họ
+    //                 'email' => $email,
+    //                 'password' => encrypt('123456789'),
+    //                 'role_id' => 3,
+    //                 'status' => 'active',
+    //             ]
+    //         );
 
-            // Tạo JWT token
-            $jwtToken = JWTAuth::fromUser($user);
-            return response()->json([
-                'message' => 'Successfully logged in',
-                'data' => $user,
-                'token' => $jwtToken,
-            ]);
-        }
+    //         // Tạo JWT token
+    //         $jwtToken = JWTAuth::fromUser($user);
+    //         return response()->json([
+    //             'message' => 'Successfully logged in',
+    //             'data' => $user,
+    //             'token' => $jwtToken,
+    //         ]);
+    //     }
 
 
-        return response()->json(['error' => 'Invalid token'], 401);
-    }
+    //     return response()->json(['error' => 'Invalid token'], 401);
+    // }
 
 }
