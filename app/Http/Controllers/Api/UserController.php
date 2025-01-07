@@ -48,7 +48,7 @@ class UserController extends Controller
                 'password' => bcrypt($request->input('password')),
                 'firt_name' => $request->input('firt_name'),
                 'last_name' => $request->input('last_name'),
-                'role_id' => 4,
+                'role_id' => 3,
                 'status' => "active"
             ];
 
@@ -386,8 +386,29 @@ class UserController extends Controller
                 ], 404);
             }
 
+            if($request->hasFile('file'))
+            {
+                $request->validate([
+                    'file' => 'file|mimes:jpg,jpeg,png,mp4|max:5120'
+                ]);
+
+                $url_file = $this->handleUploadImage($request, 'file', 'Ghi_chu_KH');
+            }
+
+            $note = [
+                "reason" => $request->reason ?? "",
+                "account_info" => [
+                    "account_number" => $request->account_number ?? "",
+                    "bank_name" => $request->bank_name ?? "",
+                    "account_holder" => $request->account_holder ?? "",
+                ],
+                "file_note" => $url_file
+            ];
+
+            $note_json = json_encode($note);
+
             $order->update([
-                'note_user' => json_encode($request->note),
+                'note_user' => $note_json,
                 'check_refund' => $request->check_refund  // 0 là chở xử lý - 1 đã hoàn tiền
             ]);
 
@@ -410,93 +431,93 @@ class UserController extends Controller
         }
     }
     
-    // public function redirectToGoogle()
-    // {
-    //     return Socialite::driver('google')->redirect();
-    // }
-    // public function handleGoogleCallback()
-    // {
-    //     try {
-    //         $user = Socialite::driver('google')->user();
-    //         // return $user->id;
-    //         $finduser = User::where('google_id', $user->id)->first();
-    //         $nameParts = explode(' ', $user->name);
-    //         $firstName = array_shift($nameParts); // Lấy từ đầu tiên
-    //         $lastName = implode(' ', $nameParts); // Phần còn lại là họ
+    public function redirectToGoogle()
+    {
+        return Socialite::driver('google')->redirect();
+    }
+    public function handleGoogleCallback()
+    {
+        try {
+            $user = Socialite::driver('google')->user();
+            // return $user->id;
+            $finduser = User::where('google_id', $user->id)->first();
+            $nameParts = explode(' ', $user->name);
+            $firstName = array_shift($nameParts); // Lấy từ đầu tiên
+            $lastName = implode(' ', $nameParts); // Phần còn lại là họ
 
-    //         if ($finduser) {
-    //             Auth::login($finduser);
-    //             $user = User::where('email')->first();
+            if ($finduser) {
+                Auth::login($finduser);
+                $user = User::where('email')->first();
 
-    //             JWTAuth::factory()->setTTL(60); // Đặt thời gian sống của token
-    //             // $token = JWTAuth::claims(['sub' => $user->id]);
-    //             $token = JWTAuth::fromUser($user);
-    //             if (!$token) {
-    //                 return response()->json(['error' => 'Invalid Credentials'], 401);
-    //             }
-    //             return redirect()->intended('http://localhost:5173');
-    //         } else {
-    //             $newUser = User::updateOrCreate(['email' => $user->email], [
-    //                 'google_id' => $user->id,
-    //                 'firt_name' => $firstName,
-    //                 'last_name' => $lastName,
-    //                 'role_id' => 4,
-    //                 'password' => encrypt('123456789')
+                JWTAuth::factory()->setTTL(60); // Đặt thời gian sống của token
+                // $token = JWTAuth::claims(['sub' => $user->id]);
+                $token = JWTAuth::fromUser($user);
+                if (!$token) {
+                    return response()->json(['error' => 'Invalid Credentials'], 401);
+                }
+                return redirect()->intended('http://localhost:5173');
+            } else {
+                $newUser = User::updateOrCreate(['email' => $user->email], [
+                    'google_id' => $user->id,
+                    'firt_name' => $firstName,
+                    'last_name' => $lastName,
+                    'role_id' => 4,
+                    'password' => encrypt('123456789')
 
-    //             ]);
-    //             Auth::login($newUser);
-    //             return redirect()->intended('http://localhost:5173');
-    //         }
-    //     } catch (Exception $e) {
-    //         dd($e->getMessage());
-    //     }
-    // }
-    // public function googleLoginJWT(Request $request)
-    // {
-    //     $token = $request->input('token');
-    //     // dd($token);
-    //     // Tạo client Google API
-    //     $client = new Client();
-    //     $client->setClientId(env('GOOGLE_CLIENT_ID')); // Client ID của bạn
+                ]);
+                Auth::login($newUser);
+                return redirect()->intended('http://localhost:5173');
+            }
+        } catch (Exception $e) {
+            dd($e->getMessage());
+        }
+    }
+    public function googleLoginJWT(Request $request)
+    {
+        $token = $request->input('token');
+        // dd($token);
+        // Tạo client Google API
+        $client = new Client();
+        $client->setClientId(env('GOOGLE_CLIENT_ID')); // Client ID của bạn
 
-    //     // Xác thực token
-    //     $payload = $client->verifyIdToken($token);
-    //     if ($payload) {
-    //         $email = $payload['email'];
-    //         $name = $payload['name'];
+        // Xác thực token
+        $payload = $client->verifyIdToken($token);
+        if ($payload) {
+            $email = $payload['email'];
+            $name = $payload['name'];
 
-    //         // Tách tên thành tên đầu và họ
-    //         $nameParts = explode(' ', $name);
-    //         $firstName = array_shift($nameParts); // Lấy tên đầu tiên
-    //         $lastName = implode(' ', $nameParts); // Lấy họ (phần còn lại)
+            // Tách tên thành tên đầu và họ
+            $nameParts = explode(' ', $name);
+            $firstName = array_shift($nameParts); // Lấy tên đầu tiên
+            $lastName = implode(' ', $nameParts); // Lấy họ (phần còn lại)
 
-    //         $id = $payload['sub'];
+            $id = $payload['sub'];
 
-    //         // Tìm hoặc tạo người dùng
-    //         $user = User::firstOrCreate(
-    //             ['email' => $email],
-    //             [
-    //                 'google_id' => $id,
-    //                 'firt_name' => $firstName, // Sử dụng tên đầu
-    //                 'last_name' => $lastName,   // Lưu họ
-    //                 'email' => $email,
-    //                 'password' => encrypt('123456789'),
-    //                 'role_id' => 3,
-    //                 'status' => 'active',
-    //             ]
-    //         );
+            // Tìm hoặc tạo người dùng
+            $user = User::firstOrCreate(
+                ['email' => $email],
+                [
+                    'google_id' => $id,
+                    'firt_name' => $firstName, // Sử dụng tên đầu
+                    'last_name' => $lastName,   // Lưu họ
+                    'email' => $email,
+                    'password' => encrypt('123456789'),
+                    'role_id' => 3,
+                    'status' => 'active',
+                ]
+            );
 
-    //         // Tạo JWT token
-    //         $jwtToken = JWTAuth::fromUser($user);
-    //         return response()->json([
-    //             'message' => 'Successfully logged in',
-    //             'data' => $user,
-    //             'token' => $jwtToken,
-    //         ]);
-    //     }
+            // Tạo JWT token
+            $jwtToken = JWTAuth::fromUser($user);
+            return response()->json([
+                'message' => 'Successfully logged in',
+                'data' => $user,
+                'token' => $jwtToken,
+            ]);
+        }
 
 
-    //     return response()->json(['error' => 'Invalid token'], 401);
-    // }
+        return response()->json(['error' => 'Invalid token'], 401);
+    }
 
 }
