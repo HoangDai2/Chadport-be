@@ -75,9 +75,12 @@ Route::group(['prefix' => 'user'], function () {
         Route::post('/addadress', [NewAddressController::class, 'addAddress']);
         Route::get('/getadress', [NewAddressController::class, 'get_NewAddress']);
         // comments routes
-        Route::post('add/comments', [ApiCommentController::class, 'addComments']);
-        Route::get('getall/comments', [ApiCommentController::class, 'getCommentsByProduct']);
-        Route::delete('delete/comments/{comment_id}', [ApiCommentController::class, 'deleteComment']);
+       // comments routes
+       Route::post('add/comments', [ApiCommentController::class, 'addComments']);
+       Route::get('getall/comments', [ApiCommentController::class, 'getCommentsByProduct']);
+       Route::delete('delete/comments/{comment_id}', [ApiCommentController::class, 'deleteComment']);
+       Route::post('update/comments/{comment_id}', [ApiCommentController::class, 'editCommentByUser']);
+
 
         
     }); 
@@ -85,6 +88,8 @@ Route::group(['prefix' => 'user'], function () {
     //Payment Vnpay
     Route::post('/create_paymentVnPay', [PaymentController::class, 'paymentVnPay']);
 });
+
+Route::get('commentsByProductId/{productId}',[ApiCommentController::class, 'showComments']);
 
 // Product routes
 Route::post('add/products', [ProductControllers::class, 'createProducts']);
