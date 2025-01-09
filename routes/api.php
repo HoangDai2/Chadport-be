@@ -83,14 +83,14 @@ Route::group(['prefix' => 'user'], function () {
         Route::get('getall/comments', [ApiCommentController::class, 'getCommentsByProduct']);
         Route::delete('delete/comments/{comment_id}', [ApiCommentController::class, 'deleteComment']);
         Route::post('update/comments/{comment_id}', [ApiCommentController::class, 'editCommentByUser']);
-        Route::get('commentsByProductId/{productId}',[ApiCommentController::class, 'showComments']);
-        
+       
     }); 
 
     //Payment Vnpay
     Route::post('/create_paymentVnPay', [PaymentController::class, 'paymentVnPay']);
 });
-
+Route::get('commentsByProductId/{productId}',[ApiCommentController::class, 'showComments']);
+        
 // Product routes
 Route::post('add/products', [ProductControllers::class, 'createProducts']);
 Route::get('list/products', [ProductControllers::class, 'showProduct']);
@@ -166,3 +166,7 @@ Route::get('top-selling-products-by-month/{year}/{month}', [OrderController::cla
 Route::post('log-search', [ProductControllers::class, 'incrementSearchCount']);
 Route::get('getTopSearchedProducts/{year}/{month}', [ProductControllers::class, 'getTopSearchedProducts']);
 Route::get('getProductVariants/{cartItemId}', [CartController::class, 'getProductVariants']);
+
+Route::get('/login/google', [UserController::class, 'redirectToGoogle']);
+Route::post('/login/googlejwt', [UserController::class, 'googleLoginJWT']);
+Route::get('/login/google/callback', [UserController::class, 'handleGoogleCallback']);

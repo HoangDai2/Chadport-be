@@ -28,6 +28,8 @@ class Product extends Model
         'image_description', // JSON field for image descriptions
         'created_at',
         'updated_at',
+        'search_count',
+        'search_count',
     ];
 
 

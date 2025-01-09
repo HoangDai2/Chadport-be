@@ -20,7 +20,7 @@ class CommentController extends Controller
                 'product_item_id' => 'required|exists:product_items,id',
                 'content' => 'required|string|max:500',
                 'rating' => 'required|max:5|min:1',
-                'image'=> 'image|mimes:jpg,jpeg,webp,gif,png'
+                'image'=> 'image|mimes:jpg,jpeg,webp,gif,png,mp4'
             ]);
             // Kiểm tra xem user đã đăng nhập chưa
             $user = auth()->user(); 
@@ -86,13 +86,20 @@ class CommentController extends Controller
 
     }
 
-    // Hàm lấy tất cả bình luận của sản phẩm
     private function getCommentsByProductId($productId) {
         return DB::table('comment')
             ->join('product_items', 'comment.product_item_id', '=', 'product_items.id')
             ->join('users', 'comment.user_id', '=', 'users.id')
+            ->join('colors', 'product_items.color_id', '=', 'colors.id') // Liên kết với bảng colors
+            ->join('sizes', 'product_items.size_id', '=', 'sizes.id')
             ->where('product_items.product_id', $productId)
-            ->select('comment.content', 'comment.rating', 'comment.image',DB::raw("CONCAT(users.firt_name, ' ', users.last_name) as name ") )
+            ->select(
+                    'comment.content', 'comment.rating','comment.created_at', 'comment.image', 'product_items.color_id',
+                    DB::raw("CONCAT(users.firt_name, ' ', users.last_name) as name "),
+                    'users.image_user',
+                    'colors.name as color_name',
+                    'sizes.name as size_name'
+                 )
             ->get();
     }
 
