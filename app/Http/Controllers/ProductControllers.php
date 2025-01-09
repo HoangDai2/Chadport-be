@@ -107,7 +107,7 @@ class ProductControllers extends Controller
         }
 
         return response()->json([
-            'data' => $product->load(['productItems.size', 'productItems.color']),
+            'data' => $product->load(['variants.size', 'variants.color']),
             'message' => 'Product and variants created successfully'
         ], 201);
     }
@@ -128,7 +128,14 @@ class ProductControllers extends Controller
             'total' => $listProduct->total(),
         ], 200);
     }
+    public function listAll()
+    {
+        // Lấy tất cả sản phẩm
+        $products = Product::all();
 
+        // Trả về dữ liệu sản phẩm dưới dạng JSON
+        return response()->json($products);
+    }
     public function showShopProducts(Request $request)
     {
         // Số sản phẩm trên mỗi trang
@@ -193,8 +200,10 @@ class ProductControllers extends Controller
 
 
 
-    public function updateProduct(Request $request, $id)
-    {
+    public function updateProduct(
+        Request $request,
+        $id
+    ) {
         try {
             // Xác thực các dữ liệu đầu vào
             $validated = $request->validate([
@@ -206,10 +215,9 @@ class ProductControllers extends Controller
                 'size_id' => 'nullable|exists:sizes,id',
                 'brand_id' => 'nullable|exists:brands,id',
                 'description' => 'nullable|string',
-                'quantity' => 'sometimes|integer|min:0',
+                'total_quatity' => 'sometimes|integer|min:0',
                 'image_product' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
                 'image_description' => 'nullable|array',
-                'image_description.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
                 'price' => 'sometimes|numeric|min:0',
                 'price_sale' => 'nullable|numeric|min:0',
                 'type' => 'nullable|string|max:50',
@@ -217,9 +225,9 @@ class ProductControllers extends Controller
                 'color' => 'nullable|string|max:20',
             ]);
 
-
             // Lấy dữ liệu đầu vào từ yêu cầu
             $data = $validated;
+
             // Lưu ảnh chính của sản phẩm
             if ($request->hasFile('image_product')) {
                 $imageProductPath = $request->file('image_product')->store('images', 'public');
@@ -232,23 +240,29 @@ class ProductControllers extends Controller
                 }
             }
 
-
-
             // Xử lý upload các file hình ảnh mô tả nếu có
             if ($request->hasFile('image_description')) {
                 $imagePaths = [];
+
+                // Lấy danh sách ảnh cũ nếu có
+                $existingProduct = Product::find($id);
+                if ($existingProduct && $existingProduct->image_description) {
+                    $existingImages = json_decode($existingProduct->image_description, true) ?? [];
+                    $imagePaths = array_merge($imagePaths, $existingImages); // Giữ lại ảnh cũ
+                }
+
+                // Thêm ảnh mới
                 foreach ($request->file('image_description') as $file) {
                     $path = $file->store('images', 'public');
                     $imagePaths[] = $path;
                 }
+
                 $data['image_description'] = json_encode($imagePaths);
             }
+
+            // Tìm sản phẩm và cập nhật thông tin
             $product = Product::find($id);
-
-
-            // Cập nhật thông tin sản phẩm
             $product->update($data);
-            // Lấy tất cả dữ liệu sản phẩm sau khi cập nhật
 
             // Trả về phản hồi JSON với dữ liệu đã cập nhật
             return response()->json([
@@ -333,37 +347,41 @@ class ProductControllers extends Controller
         if (!$product) {
             return response()->json(['message' => 'Product not found'], 404); // Nếu không tìm thấy sản phẩm
         }
-    return response()->json(['data' => $product], 200); // Trả về sản phẩm tìm thấy
+        return response()->json(['data' => $product], 200); // Trả về sản phẩm tìm thấy
     }
 
-    public function totalProduct() {
+    public function totalProduct()
+    {
         $totalPr = Product::count();
         return response()->json([
-            "Tổng sản phẩm"=> $totalPr
+            "Tổng sản phẩm" => $totalPr
         ]);
     }
-  
-        // Hàm khôi phục sản phẩm đã xóa
-        public function restoreProduct($id) {
-            Product::withTrashed()->find($id)->restore();
-            return response()->json([
-                'message' => 'Khôi phục thành công',
-            ], 200);
-        }
-        //Hàm xóa vĩnh viễn
-        public function forceDelete($id) {
-            Product::withTrashed()->find($id)->forceDelete();
-            return response()->json([
-                'message' => 'Xóa vĩnh viễn thành công',
-            ], 200);
-        }
-        // Hàm lấy tất cả sản phẩm đã xóa
-        public function getDeletedProducts() {
-            $product = Product::onlyTrashed()->get();
-            return response()->json([
-                'data' => $product
-            ], 200);
-        }
+
+    // Hàm khôi phục sản phẩm đã xóa
+    public function restoreProduct($id)
+    {
+        Product::withTrashed()->find($id)->restore();
+        return response()->json([
+            'message' => 'Khôi phục thành công',
+        ], 200);
+    }
+    //Hàm xóa vĩnh viễn
+    public function forceDelete($id)
+    {
+        Product::withTrashed()->find($id)->forceDelete();
+        return response()->json([
+            'message' => 'Xóa vĩnh viễn thành công',
+        ], 200);
+    }
+    // Hàm lấy tất cả sản phẩm đã xóa
+    public function getDeletedProducts()
+    {
+        $product = Product::onlyTrashed()->get();
+        return response()->json([
+            'data' => $product
+        ], 200);
+    }
 
     public function getTopSellingProductsByMonth($year, $month)
     {
@@ -429,9 +447,9 @@ class ProductControllers extends Controller
     {
         // Lọc sản phẩm theo năm, tháng và sắp xếp theo số lần tìm kiếm giảm dần
         $products = Product::whereYear('search_count_date', $year)
-        ->whereMonth('search_count_date', $month)
-        ->orderBy('search_count', 'desc')
-        ->get();
+            ->whereMonth('search_count_date', $month)
+            ->orderBy('search_count', 'desc')
+            ->get();
 
         // Nếu không có sản phẩm nào tìm thấy
         if ($products->isEmpty()) {
@@ -469,6 +487,4 @@ class ProductControllers extends Controller
             ], 404); // Trả về lỗi 404 nếu không tìm thấy sản phẩm
         }
     }
-
 }
-

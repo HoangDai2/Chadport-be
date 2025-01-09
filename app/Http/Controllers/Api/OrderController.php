@@ -18,15 +18,17 @@ use Illuminate\Support\Facades\Mail;
 
 class OrderController extends Controller
 {
-  
-    public function showAllOrder()  {
+
+    public function showAllOrder()
+    {
         $order = Order::all();
         return response()->json([
-            'data'=> $order
+            'data' => $order
         ]);
     }
 
-    public function totalMoney() {
+    public function totalMoney()
+    {
         $totalOrders = Order::count();
         $totalMoney = Order::where('status', 'đã thanh toán')->sum('total_money');
         $pending = Order::where('status', 'chờ xử lí')->count();
@@ -34,15 +36,16 @@ class OrderController extends Controller
         $complete = Order::where('status', 'đã hoàn thành')->count();
         $canceled = Order::where('status', 'bị hủy')->count();
         return response()->json([
-            'Tổng đơn hàng'=>$totalOrders,
-            'Doanh thu'=> $totalMoney,
-            'Chờ xử lí'=>$pending,
-            'Đang giao'=>$delivering,
-            'Đã hoàn thành'=>$complete,
-            'Bị hủy'=>$canceled,
+            'Tổng đơn hàng' => $totalOrders,
+            'Doanh thu' => $totalMoney,
+            'Chờ xử lí' => $pending,
+            'Đang giao' => $delivering,
+            'Đã hoàn thành' => $complete,
+            'Bị hủy' => $canceled,
         ]);
     }
-    public function index(Request $request) {
+    public function index(Request $request)
+    {
 
         $search = $request->input('search');
         $sort = $request->input('sort');
@@ -52,18 +55,18 @@ class OrderController extends Controller
                 ->leftjoin('vouchers', 'vouchers.id', '=', 'order.voucher_id')
                 ->select('order.*', 'users.firt_name', 'users.last_name', 'vouchers.code');
 
-                if ($search) {
-                    $data_order->when($search, function ($query, $search) {
-                        $query->where(function ($query) use ($search) {
-                            $query->where('order.order_number', 'like', '%'.$search.'%')
-                            ->where('order.shipping_addess', 'like', '%'.$search.'%')
-                            ->where('order.billing_address', 'like', '%'.$search.'%')
-                            ->where('vouchers.code', 'like', '%'.$search.'%');
-                        });
+            if ($search) {
+                $data_order->when($search, function ($query, $search) {
+                    $query->where(function ($query) use ($search) {
+                        $query->where('order.order_number', 'like', '%' . $search . '%')
+                            ->where('order.shipping_addess', 'like', '%' . $search . '%')
+                            ->where('order.billing_address', 'like', '%' . $search . '%')
+                            ->where('vouchers.code', 'like', '%' . $search . '%');
                     });
-                }
+                });
+            }
 
-            if($sort) {
+            if ($sort) {
                 $data_order->orderBy('id', $sort);
             }
 
@@ -73,7 +76,6 @@ class OrderController extends Controller
                 'message' => 'Danh sách đơn hàng',
                 'data' => $data
             ], 201);
-
         } catch (Exception $e) {
             return response()->json([
                 'message' => 'Lỗi lấy danh sách đơn hàng',
@@ -82,21 +84,23 @@ class OrderController extends Controller
         }
     }
 
-    public function detail(Request $request) {
+    public function detail(Request $request)
+    {
         $id_order = $request->input('order_id');
-    
+
         try {
-            $order = Order::with(['user', 'voucher', 'orderDetails.productItem.product', 
-                            'orderDetails.productItem.color', 
-                            'orderDetails.productItem.size'])
-            ->where('id', $id_order)
-            ->first();
-    
+            $order = Order::with([
+                'user', 'voucher', 'orderDetails.productItem.product',
+                'orderDetails.productItem.color',
+                'orderDetails.productItem.size'
+            ])
+                ->where('id', $id_order)
+                ->first();
+
             return response()->json([
                 'message' => 'Chi tiêt đơn hàng',
                 'data' => $order
             ], 200);
-    
         } catch (Exception $e) {
             return response()->json([
                 'message' => 'Lỗi lấy chi tiết đơn hàng',
@@ -105,7 +109,8 @@ class OrderController extends Controller
         }
     }
 
-    public function edit(Request $request) {
+    public function edit(Request $request)
+    {
 
         $validStatuses = [
             "1" => "chờ xử lí",
@@ -114,19 +119,19 @@ class OrderController extends Controller
             "4" => "đã hoàn thành",
             "5" => "bị hủy"
         ];
-    
+
         try {
             $order = Order::findOrFail($request->input('order_id'));
             $user = User::where('id', $order->user_id)->first();
             $currentStatusIndex = array_search($order->status, $validStatuses);
             $nextStatusIndex = $request->input('status');
-    
+
             $order->status = $validStatuses[$nextStatusIndex];
 
-            if($nextStatusIndex == 5 && $currentStatusIndex == 2){
+            if ($nextStatusIndex == 5 && $currentStatusIndex == 2) {
                 $data_refund = $this->refundVNpay($order);
                 $responseData = json_decode($data_refund->getContent());
-                if($responseData->code == 0) {
+                if ($responseData->code == 0) {
                     $order->status == $validStatuses[$nextStatusIndex];
                     $order->save();
 
@@ -137,21 +142,19 @@ class OrderController extends Controller
                         'message' => 'Trạng thái đơn hàng đã được cập nhật, đơn hàng đã được hoàn tiền',
                         'data' => $order
                     ], 200);
-
-                }else {
+                } else {
                     return response()->json([
                         'message' => 'Lỗi hoàn tiền',
                     ], 403);
                 }
-            }else{
+            } else {
                 $order->save();
             }
-    
+
             return response()->json([
                 'message' => 'Trạng thái đơn hàng đã được cập nhật',
                 'data' => $order
             ], 200);
-    
         } catch (Exception $e) {
             return response()->json([
                 'message' => 'Lỗi cập nhật trạng thái đơn hàng',
@@ -159,17 +162,17 @@ class OrderController extends Controller
             ], 500);
         }
     }
-    
-    public function delete($id) {
+
+    public function delete($id)
+    {
         try {
             $order = Order::findOrFail($id);
             $order->delete();
-    
+
             return response()->json([
                 'message' => 'Đơn hàng đã được xóa',
                 'data' => $order
             ], 200);
-    
         } catch (Exception $e) {
             return response()->json([
                 'message' => 'Lỗi xóa đơn hàng',
@@ -184,42 +187,42 @@ class OrderController extends Controller
         $vnp_HashSecret = 'DH63N76YR1W0OCH6YTF86GECMLWR99UJ';
         $vnp_IpAddr = $_SERVER['REMOTE_ADDR'];
         date_default_timezone_set('Asia/Ho_Chi_Minh');
-    
+
         $ispTxnRequest = [
             'vnp_RequestId' => $this->generateRequestId(),
             'vnp_Version' => '2.1.0',
             'vnp_Command' => 'refund',
-            'vnp_TmnCode' => 'F534FO6G', 
+            'vnp_TmnCode' => 'F534FO6G',
             'vnp_TransactionType' => 02,
-            'vnp_TxnRef' => "Thanh toán mã đơn hàng" .' '. $order->oder_number,
-            'vnp_Amount' => $order->total_money*100,
-            'vnp_OrderInfo' => "Thanh toán mã đơn hàng" .' '. $order->oder_number .'-'. $order->id,
+            'vnp_TxnRef' => "Thanh toán mã đơn hàng" . ' ' . $order->oder_number,
+            'vnp_Amount' => $order->total_money * 100,
+            'vnp_OrderInfo' => "Thanh toán mã đơn hàng" . ' ' . $order->oder_number . '-' . $order->id,
             'vnp_TransactionNo' => $order->transaction_no,
             'vnp_TransactionDate' => $order->transaction_date,
-            'vnp_CreateDate' => date('YmdHis'), 
-            'vnp_CreateBy' => 'Admin', 
-            'vnp_IpAddr' => $vnp_IpAddr 
+            'vnp_CreateDate' => date('YmdHis'),
+            'vnp_CreateBy' => 'Admin',
+            'vnp_IpAddr' => $vnp_IpAddr
         ];
-    
+
         $dataHash = implode('|', [
-            $ispTxnRequest['vnp_RequestId'],       
-            $ispTxnRequest['vnp_Version'],         
-            $ispTxnRequest['vnp_Command'],        
-            $ispTxnRequest['vnp_TmnCode'],         
-            $ispTxnRequest['vnp_TransactionType'],  
-            $ispTxnRequest['vnp_TxnRef'],         
-            $ispTxnRequest['vnp_Amount'],           
-            $ispTxnRequest['vnp_TransactionNo'],   
+            $ispTxnRequest['vnp_RequestId'],
+            $ispTxnRequest['vnp_Version'],
+            $ispTxnRequest['vnp_Command'],
+            $ispTxnRequest['vnp_TmnCode'],
+            $ispTxnRequest['vnp_TransactionType'],
+            $ispTxnRequest['vnp_TxnRef'],
+            $ispTxnRequest['vnp_Amount'],
+            $ispTxnRequest['vnp_TransactionNo'],
             $ispTxnRequest['vnp_TransactionDate'],
-            $ispTxnRequest['vnp_CreateBy'],       
-            $ispTxnRequest['vnp_CreateDate'],     
-            $ispTxnRequest['vnp_IpAddr'],          
-            $ispTxnRequest['vnp_OrderInfo'],        
+            $ispTxnRequest['vnp_CreateBy'],
+            $ispTxnRequest['vnp_CreateDate'],
+            $ispTxnRequest['vnp_IpAddr'],
+            $ispTxnRequest['vnp_OrderInfo'],
         ]);
-    
+
         $checksum = hash_hmac('sha512', $dataHash, $vnp_HashSecret);
         $ispTxnRequest["vnp_SecureHash"] = $checksum;
-    
+
         Log::info('VNPAY Refund Request Data:', $ispTxnRequest);
 
         try {
@@ -230,18 +233,17 @@ class OrderController extends Controller
             $txnData = $response->json();
 
             Log::info('VNPAY Refund Response Data:', $txnData);
-    
-            if($txnData) {
+
+            if ($txnData) {
                 return response()->json([
                     'message' => 'GD hoàn tiền thành công. Vui lòng truy cập Merchant Admin để kiểm tra giao dịch!',
                     'code' => 0
                 ], 200);
-            }else{
+            } else {
                 return response()->json([
                     'message' => 'GD thất bại, đã có lỗi trong qua trình hoàn tiền. Vui lòng truy cập Merchant Admin để kiểm tra giao dịch!',
                 ], 403);
             }
-
         } catch (\Exception $e) {
             return response()->json(['message' => 'Lỗi: ' . $e->getMessage()], 500);
         }
@@ -390,7 +392,7 @@ class OrderController extends Controller
         }
     }
 
-    public function getAllOrdersAdmin(Request $request)    
+    public function getAllOrdersAdmin(Request $request)
     {
         try {
             $orders = Order::orderBy('created_at', 'desc')->get();
@@ -432,11 +434,21 @@ class OrderController extends Controller
                             ];
                         }
                     });
-
+                $user = $order->User;
                 // Thêm thông tin chi tiết đơn hàng vào mảng
                 $orderDetails[] = [
                     'id' => $order->id,
                     'user_id' => $order->user_id,
+                    // 'user_name' => $user ? $user->name : null, // Thêm thông tin user (vd: tên)
+                    'user_email' => $user ? $user->email : null, // Thêm email
+                    'image_user' => $user ? $user->image_user : null, // Thêm email
+                    'gender' => $user ? $user->gender : null, // Thêm email
+                    'birthday' => $user ? $user->birthday : null, // Thêm email
+                    'address' => $user ? $user->address : null, // Thêm email
+                    'phone_number' => $user ? $user->phone_number : null, // Thêm email
+                    'last_name' => $user ? $user->last_name : null, // Thêm email
+                    'status_user' => $user ? $user->status : null, // Thêm email
+                    'firt_name' => $user ? $user->firt_name : null, // Thêm email
                     'oder_number' => $order->oder_number,
                     'payment_method' => $order->payment_method,
                     'status' => $order->status,
@@ -464,11 +476,11 @@ class OrderController extends Controller
 
     public function confirmRefund(Request $request)
     {
-        try{
+        try {
             $reason = $request->reason;
             $order = Order::where('id', $request->order_id)->first();
             $user = User::where('id', $order->user_id)->first();
-            if(empty($order)){
+            if (empty($order)) {
                 return response()->json([
                     'message' => 'Không tìm thấy order',
                 ], 404);
@@ -490,11 +502,12 @@ class OrderController extends Controller
             ], 500);
         }
     }
-    
+
     public function getOrderById($orderId)
     {
         try {
             $order = Order::find($orderId);
+            $user = User::find($order->user_id);
 
             // Kiểm tra nếu không tìm thấy đơn hàng
             if (!$order) {
@@ -534,6 +547,9 @@ class OrderController extends Controller
             $orderDetails = [
                 'id' => $order->id,
                 'user_id' => $order->user_id,
+                'firt_name' => $user ? $user->firt_name : null,
+                'last_name' => $user ? $user->last_name : null,
+                'phone_number' => $user ? $user->phone_number : null,
                 'oder_number' => $order->oder_number,
                 'payment_method' => $order->payment_method,
                 'status' => $order->status,
@@ -558,15 +574,16 @@ class OrderController extends Controller
         }
     }
 
-    private function generateRequestId($length = 10) {
+    private function generateRequestId($length = 10)
+    {
         $characters = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
         $charactersLength = strlen($characters);
         $randomString = '';
-    
+
         for ($i = 0; $i < $length; $i++) {
             $randomString .= $characters[rand(0, $charactersLength - 1)];
         }
-    
+
         return $randomString;
     }
 
@@ -605,7 +622,7 @@ class OrderController extends Controller
                     'orderDetails.productItem.size'
                 ])
                 ->get();
-    
+
             return response()->json([
                 'message' => 'Thông tin danh sách yêu cầu hoàn với check_refund = 0',
                 'data' => $data
@@ -617,7 +634,7 @@ class OrderController extends Controller
             ], 500);
         }
     }
-    
+
 
     public function getTopSellingProductsByMonth($year, $month)
     {
@@ -674,11 +691,53 @@ class OrderController extends Controller
         } catch (Exception $e) {
             return response()->json([
                 'message' => 'Error fetching top selling products by month',
-        'error' => $e->getMessage(),
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
+    public function cancelOrder(Request $request)
+    {
+        try {
+            // Lấy thông tin từ body request
+            $orderId = $request->input('order_id'); // Lấy orderId từ body request
+            $cancelNote = $request->input('cancel_note'); // Lấy cancel_note từ body request
 
+            // Xác thực người dùng
+            $user = auth()->user();
+            $userId = $user->id;
+
+            // Lấy đơn hàng cần hủy bằng ID và kiểm tra quyền sở hữu
+            $order = Order::where('id', $orderId)->where('user_id', $userId)->first();
+
+            // Kiểm tra nếu đơn hàng không tồn tại
+            if (!$order) {
+                return response()->json([
+                    'message' => 'Đơn hàng không tồn tại hoặc bạn không có quyền hủy đơn hàng này.'
+                ], 404);
+            }
+
+            // Kiểm tra nếu đơn hàng đã được giao hoặc đã hoàn tất, không thể hủy
+            if (in_array($order->status, ['đã thanh toán', 'đang giao', 'đã hoàn thành'])) {
+                return response()->json([
+                    'message' => 'Không thể hủy đơn hàng đã hoàn tất hoặc đã được giao.'
+                ], 400);
+            }
+
+            // Cập nhật trạng thái đơn hàng và ghi chú hủy
+            $order->status = 'bị hủy'; // Đặt trạng thái là đã hủy
+            $order->cancel_note = $cancelNote; // Lưu ghi chú lý do hủy
+            $order->save();
+
+            // Trả về kết quả thành công
+            return response()->json([
+                'message' => 'Đơn hàng đã được hủy thành công.',
+                'data' => $order
+            ], 200);
+        } catch (Exception $e) {
+            return response()->json([
+                'message' => 'Lỗi khi hủy đơn hàng',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }
-
-    
