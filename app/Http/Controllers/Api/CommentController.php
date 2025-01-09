@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\ProductItems;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class CommentController extends Controller
 {
@@ -19,7 +20,7 @@ class CommentController extends Controller
                 'product_item_id' => 'required|exists:product_items,id',
                 'content' => 'required|string|max:500',
                 'rating' => 'required|max:5|min:1',
-                'image'=> 'image|mimes:jpg,jpeg,webp,gif,png'
+                'image'=> 'image|mimes:jpg,jpeg,webp,gif,png,mp4'
             ]);
             // Kiểm tra xem user đã đăng nhập chưa
             $user = auth()->user(); 
@@ -71,6 +72,7 @@ class CommentController extends Controller
                 'image'=>$filename
             ]);
             return response()->json([
+                'message'=> 'Đánh giá sản phẩm thành công',
                 'data'=> $comment
             ], 200);
             
@@ -84,12 +86,30 @@ class CommentController extends Controller
 
     }
 
-    // hàm lấy all comments sử dụng trong trang chi tiết sản phẩm (hàm lấy bình luận của tất cả user)
-    public function getCommentsByProduct() {
-        $comments = Comment::all();
+    private function getCommentsByProductId($productId) {
+        return DB::table('comment')
+            ->join('product_items', 'comment.product_item_id', '=', 'product_items.id')
+            ->join('users', 'comment.user_id', '=', 'users.id')
+            ->join('colors', 'product_items.color_id', '=', 'colors.id') // Liên kết với bảng colors
+            ->join('sizes', 'product_items.size_id', '=', 'sizes.id')
+            ->where('product_items.product_id', $productId)
+            ->select(
+                    'comment.content', 'comment.rating','comment.created_at', 'comment.image', 'product_items.color_id',
+                    DB::raw("CONCAT(users.firt_name, ' ', users.last_name) as name "),
+                    'users.image_user',
+                    'colors.name as color_name',
+                    'sizes.name as size_name'
+                 )
+            ->get();
+    }
+
+    // truyền product_id vào để lấy ra tất cả bình luận của sản phẩm đó
+    public function showComments($productId) {
+        $comments = $this->getCommentsByProductId($productId);
         return response()->json([
-            'data' => $comments
-        ], 200);
+            'product_id' => $productId,
+            'comments' => $comments,
+        ]);
     }
 
     //hàm lấy tắt cả các bình luận của user 
@@ -130,13 +150,64 @@ class CommentController extends Controller
         DB::table('comment')->where('comment_id', $comment_id)->delete();
 
         return response()->json([
-            'message' => 'Comment deleted successfully',
+            'message' => 'Xóa comment thành công',
         ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Có lỗi xảy ra',
                 'error' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    // Hàm sửa comment
+    public function editCommentByUser(string $comment_id, Request $request) {
+        try {
+                $request->setMethod('PUT');
+                $params = $request->all();
+                
+                $comment = DB::table('comment')->where('comment_id', $comment_id)->first();
+                
+                // check comment
+                if (!$comment) {
+                    return response()->json([
+                        'message' => 'Comment không tồn tại',
+                    ], 404);
+                }
+    
+                
+                // check người dùng đã comment hay chauw
+                if ($comment->user_id != auth()->user()->id) {
+                    return response()->json([
+                        'message' => 'Bạn chưa comment bài viết này',
+                    ], 403);
+                }
+    
+                //Kiểm tra ảnh
+                if ($request->hasFile('image')) {
+                    if ($comment->image) {      
+                        Storage::disk('public')->delete($comment->image);   
+                    }
+                    $params['image'] =  $request->file('image')->store('uploads/comments', 'public');
+                }else {
+                    $params['image'] = $comment->image;
+                }
+                
+                $params['content'] = $request->input('content', $comment->content);
+    
+                $params['updated_at'] = now();
+                $comment = DB::table('comment')->where('comment_id', $comment_id)->update($params);
+                
+                return response()->json([
+                    'message' => 'Comment updated successfully',
+                ], 200);
+            
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Có lỗi xảy ra',
+                'error' => $e->getMessage()
+            ]);
         }
     }
 
