@@ -22,19 +22,23 @@ class Order extends Model
         'status',
         'note_user',
         'note_admin',
-        'check_refund'
+        'check_refund',
+        'cancel_note',
     ];
 
     //  Relationship
-    public function User() {
+    public function User()
+    {
         return $this->belongsTo(User::class);
     }
 
-    public function Voucher() {
+    public function Voucher()
+    {
         return $this->belongsTo(Voucher::class);
     }
 
-    public function orderDetails() {
+    public function orderDetails()
+    {
         return $this->hasMany(OrderDetail::class);
     }
 }
