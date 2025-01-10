@@ -47,7 +47,7 @@ class UserController extends Controller
                 'password' => bcrypt($request->input('password')),
                 'firt_name' => $request->input('firt_name'),
                 'last_name' => $request->input('last_name'),
-                'role_id' => 4,
+                'role_id' => 3,
                 'status' => "active"
             ];
 
