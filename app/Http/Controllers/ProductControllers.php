@@ -7,7 +7,9 @@ use App\Models\Category;
 use App\Models\ProductItems;
 use App\Models\ProductVariant;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+
 
 
 class ProductControllers extends Controller
@@ -339,5 +341,32 @@ class ProductControllers extends Controller
             "Tổng sản phẩm"=> $totalPr
         ]);
     }
+
+
+    public function showProductsByRating(Request $request)
+    {
+        // Số lượng sản phẩm hiển thị trên mỗi trang
+        $perPage = 10;
+    
+        // Truy vấn để lấy sản phẩm với rating trung bình
+        $products = DB::table('products')
+    ->select('products.id', 'products.name', 'products.price', DB::raw('AVG(comment.rating) as average_rating'))
+    ->join('product_items', 'products.id', '=', 'product_items.product_id')
+    ->join('comment', 'product_items.id', '=', 'comment.product_item_id')
+    ->groupBy('products.id', 'products.name', 'products.price') // Thêm các cột khác nếu cần
+    ->orderByDesc('average_rating')
+    ->paginate(10);
+                                               // Phân trang
+    
+        // Trả về danh sách sản phẩm và thông tin phân trang
+        return response()->json([
+            'data' => $products->items(),
+            'current_page' => $products->currentPage(),
+            'last_page' => $products->lastPage(),
+            'total' => $products->total(),
+        ], 200);
+    }
+    
+    
 }
 

@@ -90,6 +90,7 @@ Route::group(['prefix' => 'user'], function () {
 });
 
 Route::get('commentsByProductId/{productId}',[ApiCommentController::class, 'showComments']);
+Route::get('/products/rating', [ProductControllers::class, 'showProductsByRating']);
 
 // Product routes
 Route::post('add/products', [ProductControllers::class, 'createProducts']);
