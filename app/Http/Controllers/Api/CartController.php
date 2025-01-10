@@ -16,6 +16,7 @@ use App\Events\OrderNotifications;
 use App\Models\Color;
 use App\Models\Product;
 use App\Models\Size;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth as FacadesAuth;
 use Tymon\JWTAuth\Contracts\Providers\Auth;
 
@@ -147,7 +148,7 @@ class CartController extends Controller
                 'message' => 'Danh sách các mục trong giỏ hàng.',
                 'cart_id' => $cart->id,
                 'cart_items' => $formattedCartItems,
-                'total_price' => $totalPrice,
+                'total_price' => $cart->total,
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
@@ -472,6 +473,9 @@ class CartController extends Controller
 
             Log::info('Event OrderNotifications đã được phát', ['orderNumber' => $orderNumber]);
 
+            DB::table('voucher_used')->where('user_id', $user_id)
+                ->where('voucher_id', $cart->voucher_id)
+                ->delete();
 
             // Xóa các sản phẩm đã được chọn (checked = 1) trong giỏ hàng
             Cart_item::where('cart_id', $cart->id)
@@ -514,44 +518,63 @@ class CartController extends Controller
 
     public function addCouponCart(Request $request)
     {
-        $request->validate(['voucher_id' => 'required|integer|exists:vouchers,id']);
+        $request->validate(['id' => 'required|integer|exists:vouchers,id']);
     
         $userId = auth()->id();
-        $voucher = Voucher::find($request->voucher_id);
+        $voucher = Voucher::where('id', $request->id)
+            ->first();
     
         if (!$voucher) {
             return response()->json(['message' => 'Không tìm thấy voucher.'], 404);
         }
+
+        if ($voucher->used_count == $voucher->usage_limit) {
+            return response()->json(['message' => 'voucher đã đạt số lượng người dùng, vui lòng chờ đợt voucher khác.'], 403);
+        }
+
+        if ($voucher->expires_at < Carbon::now()) {
+            return response()->json(['message' => 'voucher đã quá hạn.'], 403);
+        }
     
-        // if (DB::table('voucher_used')->where('voucher_id', $request->voucher_id)->where('user_id', $userId)->exists()) {
-        //     return response()->json(['message' => 'Bạn đã sử dụng voucher này rồi.'], 403);
-        // }
-    
+        if (DB::table('voucher_used')->where('id', $request->id)->where('user_id', $userId)->exists()) {
+            return response()->json(['message' => 'Bạn đã sử dụng voucher này rồi.'], 403);
+        }
+
         $cart = Cart::where('user_id', $userId)->where('status', 'đang sử dụng')->first();
     
         if (!$cart) {
             return response()->json(['message' => 'Giỏ hàng không hợp lệ.'], 400);
         }
-    
-        $data_cart = $cart->total;
-        $total_cart_voucher = $data_cart;
-    
-        if ($voucher->discount_type === 'percentage') {
-            $price_voucher = $data_cart * $voucher->discount_value / 100;
-            $total_cart_voucher = max($data_cart - $price_voucher, 0);
-        } elseif ($voucher->discount_type === 'fixed_amount') {
-            $total_cart_voucher = max($data_cart - $voucher->discount_value, 0);
+
+        $data_voucher_used = DB::table('voucher_used')->where('user_id', $userId)
+            ->where('voucher_id', $cart->voucher_id)
+            ->first();
+
+        if($data_voucher_used) {
+            if($data_voucher_used->voucher_id != $request->id){
+                return response()->json(['message' => 'Bạn đang sử dụng voucher rồi, vui lòng xoá voucher cũ để sử dụng voucher mới'], 403);
+            }
+            return response()->json(['message' => 'Bạn đang sử dụng voucher này rồi, không thể thêm voucher lại nữa'], 403);
         }
+
+        if ($voucher->discount_type === 'percentage') {
+            $price_voucher = $cart->total * $voucher->discount_value / 100;
+            $totalPrice = max($cart->total - $price_voucher, 0);
+        } elseif ($voucher->discount_type === 'fixed_amount') {
+            $totalPrice = max($cart->total - $voucher->discount_value, 0);
+        }
+
+        $cart->update([
+            'voucher_id' => $request->id,
+            'total' => $totalPrice
+        ]);
     
-        $cart->total = $total_cart_voucher;
-        $cart->save();
+        DB::table('voucher_used')->updateOrInsert(
+            ['voucher_id' => $request->id, 'user_id' => $userId],
+            ['created_at' => now()]
+        );
     
-        // DB::table('voucher_used')->updateOrInsert(
-        //     ['voucher_id' => $request->voucher_id, 'user_id' => $userId],
-        //     ['created_at' => now()]
-        // );
-    
-        return response()->json(['message' => 'Voucher đã được thêm thành công.', 'total_cart' => $total_cart_voucher], 200);
+        return response()->json(['message' => 'Voucher đã được thêm thành công.', 'total_cart' => $cart->total], 200);
     }
 
     public function removeVoucher(Request $request)
@@ -563,23 +586,32 @@ class CartController extends Controller
             return response()->json(['message' => 'Giỏ hàng không hợp lệ.'], 400);
         }
 
-        $voucher = DB::table('voucher_used')->where('user_id', $userId)->first();
+        $voucher_used = DB::table('voucher_used')->where('user_id', $userId)->first();
 
-        if (!$voucher) {
+        if (!$voucher_used) {
             return response()->json(['message' => 'Không có voucher nào để xóa.'], 404);
         }
 
         $data_cart = $cart->total;
-
-        if ($voucher->discount_type === 'percentage') {
-            $price_voucher = $data_cart * $voucher->discount_value / (100 - $voucher->discount_value);
-            $cart->total = $data_cart + $price_voucher;
-        } elseif ($voucher->discount_type === 'fixed_amount') {
-            $cart->total = $data_cart + $voucher->discount_value;
+        $voucher = Voucher::where('id', $voucher_used->voucher_id)->first();
+        
+        if ($voucher) {
+            if ($voucher->discount_type === 'percentage') {
+                $price_voucher = $data_cart * $voucher->discount_value / (100 - $voucher->discount_value);
+                $cart->total = $data_cart + $price_voucher;
+            } elseif ($voucher->discount_type === 'fixed_amount') {
+                $cart->total = $data_cart + $voucher->discount_value;
+            }
+        
+            $cart->voucher_id = null;
+            $cart->save();
+        
+            DB::table('voucher_used')->where('user_id', $userId)->delete();
+        
+            return response()->json(['message' => 'Cập nhật giỏ hàng thành công.', 'total' => $cart->total], 200);
+        } else {
+            return response()->json(['message' => 'Voucher không hợp lệ.'], 400);
         }
-
-        $cart->save();
-        DB::table('voucher_used')->where('user_id', $userId)->delete();
 
         return response()->json(['message' => 'Voucher đã được xóa thành công.'], 200);
     }

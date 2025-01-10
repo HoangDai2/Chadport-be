@@ -14,8 +14,11 @@ class VoucherController extends Controller
      */
     public function index()
     {
-        $voucher = Voucher::all();
-        return VoucherResource::collection($voucher);
+        $vouchers = Voucher::all();
+        return response()->json([
+            'message' => 'Danh sách voucher',
+            'data' => $vouchers
+        ], 200);
     }
 
     /**
@@ -23,12 +26,20 @@ class VoucherController extends Controller
      */
     public function store(Request $request)
     {
-        if ($request->isMethod('POST')) {
-            $params = $request->all();
-
-            $newvoucher = Voucher::create($params);
-            return new VoucherResource($newvoucher);
-        }
+        $request->validate([
+            'code' => 'required|string|max:255|unique:vouchers,code',
+            'discount_type' => 'required|string|in:percentage,fixed',
+            'discount_value' => 'required|numeric|min:0',
+            'expires_at' => 'required|date|after:now',
+            'usage_limit' => 'required|integer|min:1',
+            'used_count' => 'nullable|integer|min:0',
+        ]);
+    
+        $newVoucher = Voucher::create($request->all());
+        return response()->json([
+            'message' => 'Voucher created successfully',
+            'data' => $newVoucher
+        ], 201);
     }
 
     /**
@@ -36,24 +47,32 @@ class VoucherController extends Controller
      */
     public function show(string $id)
     {
-        $voucher = Voucher::query()->findOrFail($id);
-        if (!$voucher) {
-            return response()->json(['message' => 'Không tìm thấy voucher'], 404);
-        }
-        return new VoucherResource($voucher);
+        $voucher = Voucher::findOrFail($id);
+        return response()->json([
+            'message' => 'Voucher found',
+            'data' => $voucher
+        ], 200);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function update(Request $request, string $voucher)
     {
-        if ($request->isMethod('PUT')) {
-            $params = $request->all();
-            $voucher = Voucher::findOrFail($id);
-            $voucher->update($params);
-            return new VoucherResource($voucher);
-        }
+        $voucher = Voucher::findOrFail($voucher);
+        $voucher->update($request->only([
+            'code',
+            'discount_type',
+            'discount_value',
+            'expires_at',
+            'usage_limit',
+            'used_count',
+        ]));
+        
+        return response()->json([
+            'message' => 'Voucher updated successfully',
+            'data' => $voucher
+        ], 200);
     }
 
     /**
@@ -63,6 +82,7 @@ class VoucherController extends Controller
     {
         $voucher = Voucher::findOrFail($id);
         $voucher->delete();
+        
         return response()->json([
             'message' => 'Xóa thành công!!'
         ], 200);

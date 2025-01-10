@@ -136,7 +136,11 @@ Route::delete('variants/{id}', [VariantController::class, 'destroy']); // Route 
 Route::resource('brand', BrandController::class);
 
 //Voucher route
-Route::resource('voucher', VoucherController::class);
+Route::get('voucher', [VoucherController::class, 'index']);
+Route::post('voucher', [VoucherController::class, 'store']);
+Route::get('voucher/{voucher}', [VoucherController::class, 'show']);
+Route::post('voucher/{voucher}', [VoucherController::class, 'update']);
+Route::delete('voucher/{voucher}', [VoucherController::class, 'destroy']);
 
 
 
