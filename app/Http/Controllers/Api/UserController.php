@@ -25,6 +25,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Tymon\JWTAuth\Exceptions\TokenExpiredException;
 use Tymon\JWTAuth\Exceptions\TokenInvalidException;
+use Google\Client;
+use Laravel\Socialite\Facades\Socialite;
 
 class UserController extends Controller
 {
@@ -47,7 +49,7 @@ class UserController extends Controller
                 'password' => bcrypt($request->input('password')),
                 'firt_name' => $request->input('firt_name'),
                 'last_name' => $request->input('last_name'),
-                'role_id' => 4,
+                'role_id' => 3,
                 'status' => "active"
             ];
 
@@ -371,10 +373,11 @@ class UserController extends Controller
 
     public function changeMyOrder(Request $request)
     {
-        try{
+        try {
             $userId = auth()->id();
             $user = auth()->user();
 
+            // Lấy thông tin đơn hàng
             $order = Order::where('id', $request->order_id)
                 ->where('user_id', $userId)
                 ->first();
@@ -385,15 +388,41 @@ class UserController extends Controller
                 ], 404);
             }
 
-            if($request->hasFile('file'))
-            {
+            // Khởi tạo biến mặc định cho các file
+            $url_file = null;
+            $extra_file_url = null;
+
+            // Xử lý file đầu tiên nếu có trong request (file gốc)
+            if ($request->hasFile('file')) {
                 $request->validate([
-                    'file' => 'file|mimes:jpg,jpeg,png,mp4|max:5120'
+                    'file' => 'file|mimes:jpg,jpeg,png,mp4|max:5120', // Hỗ trợ ảnh và video
                 ]);
 
-                $url_file = $this->handleUploadImage($request, 'file', 'Ghi_chu_KH');
+                // Lưu file vào thư mục
+                $file = $request->file('file');
+                $path = $file->store('Ghi_chu_KH', 'public'); // Lưu vào thư mục public
+                $url_file = '/storage/' . $path; // Tạo đường dẫn public
+
+                // Log thông tin file
+                Log::info('File uploaded successfully', ['path' => $url_file]);
             }
 
+            // Xử lý file thứ hai (extra_file) nếu có trong request
+            if ($request->hasFile('extra_file')) {
+                $request->validate([
+                    'extra_file' => 'file|mimes:mp4|max:5120', // Chỉ cho phép video MP4
+                ]);
+
+                // Lưu file vào thư mục
+                $extraFile = $request->file('extra_file');
+                $extraPath = $extraFile->store('Ghi_chu_KH', 'public');
+                $extra_file_url = '/storage/' . $extraPath;
+
+                // Log thông tin file
+                Log::info('Extra file uploaded successfully', ['path' => $extra_file_url]);
+            }
+
+            // Xây dựng dữ liệu ghi chú người dùng
             $note = [
                 "reason" => $request->reason ?? "",
                 "account_info" => [
@@ -401,34 +430,127 @@ class UserController extends Controller
                     "bank_name" => $request->bank_name ?? "",
                     "account_holder" => $request->account_holder ?? "",
                 ],
-                "file_note" => $url_file
+                "file_note" => $url_file, // Đường dẫn file gốc
+                "extra_file" => $extra_file_url, // Đường dẫn file bổ sung
             ];
 
-            $note_json = json_encode($note);
-
+            // Cập nhật ghi chú vào cơ sở dữ liệu
             $order->update([
-                'note_user' => $note_json,
-                'check_refund' => $request->check_refund  // 0 là chở xử lý - 1 đã hoàn tiền
+                'note_user' => json_encode($note),
+                'check_refund' => $request->check_refund, // 0: chờ xử lý, 1: đã hoàn tiền
             ]);
 
+            // Gửi email thông báo đến admin
             $emailAdmin = 'quyendvph34264@gmail.com';
             Mail::to($emailAdmin)->send(new NotiDestroyMail($user, $order));
 
+            // Trả về phản hồi thành công
             return response()->json([
                 'message' => 'Cập nhật hủy đơn thành công, vui lòng chờ shop xử lý!',
-                'data' => $order
+                'data' => $order,
             ], 200);
+        } catch (\Exception $e) {
+            // Log lỗi chi tiết
+            Log::error("Error processing order: " . $e->getMessage(), [
+                'stack' => $e->getTraceAsString(),
+            ]);
 
-        }
-        catch (\Exception $e) {
-            Log::error("Error processing order: " . $e->getMessage());
-
+            // Trả về phản hồi lỗi
             return response()->json([
                 'message' => 'Đã xảy ra lỗi.',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
-    
+
+
+    public function redirectToGoogle()
+    {
+        return Socialite::driver('google')->redirect();
+    }
+    public function handleGoogleCallback()
+    {
+        try {
+            $user = Socialite::driver('google')->user();
+            // return $user->id;
+            $finduser = User::where('google_id', $user->id)->first();
+            $nameParts = explode(' ', $user->name);
+            $firstName = array_shift($nameParts); // Lấy từ đầu tiên
+            $lastName = implode(' ', $nameParts); // Phần còn lại là họ
+
+            if ($finduser) {
+                Auth::login($finduser);
+                $user = User::where('email')->first();
+
+                JWTAuth::factory()->setTTL(60); // Đặt thời gian sống của token
+                // $token = JWTAuth::claims(['sub' => $user->id]);
+                $token = JWTAuth::fromUser($user);
+                if (!$token) {
+                    return response()->json(['error' => 'Invalid Credentials'], 401);
+                }
+                return redirect()->intended('http://localhost:5173');
+            } else {
+                $newUser = User::updateOrCreate(['email' => $user->email], [
+                    'google_id' => $user->id,
+                    'firt_name' => $firstName,
+                    'last_name' => $lastName,
+                    'role_id' => 4,
+                    'password' => encrypt('123456789')
+
+                ]);
+                Auth::login($newUser);
+                return redirect()->intended('http://localhost:5173');
+            }
+        } catch (Exception $e) {
+            dd($e->getMessage());
+        }
+    }
+    public function googleLoginJWT(Request $request)
+    {
+        $token = $request->input('token');
+        // dd($token);
+        // Tạo client Google API
+        $client = new Client();
+        $client->setClientId(env('GOOGLE_CLIENT_ID')); // Client ID của bạn
+
+        // Xác thực token
+        $payload = $client->verifyIdToken($token);
+        if ($payload) {
+            $email = $payload['email'];
+            $name = $payload['name'];
+
+            // Tách tên thành tên đầu và họ
+            $nameParts = explode(' ', $name);
+            $firstName = array_shift($nameParts); // Lấy tên đầu tiên
+            $lastName = implode(' ', $nameParts); // Lấy họ (phần còn lại)
+
+            $id = $payload['sub'];
+
+            // Tìm hoặc tạo người dùng
+            $user = User::firstOrCreate(
+                ['email' => $email],
+                [
+                    'google_id' => $id,
+                    'firt_name' => $firstName, // Sử dụng tên đầu
+                    'last_name' => $lastName,   // Lưu họ
+                    'email' => $email,
+                    'password' => encrypt('123456789'),
+                    'role_id' => 3,
+                    'status' => 'active',
+                ]
+            );
+
+            // Tạo JWT token
+            $jwtToken = JWTAuth::fromUser($user);
+            return response()->json([
+                'message' => 'Successfully logged in',
+                'data' => $user,
+                'token' => $jwtToken,
+            ]);
+        }
+
+
+        return response()->json(['error' => 'Invalid token'], 401);
+    }
 
 }

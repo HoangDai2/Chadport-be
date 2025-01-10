@@ -34,7 +34,7 @@ Route::group(['prefix' => 'admin'], function () {
             Route::get('/index', [ProductControllerAD::class, 'index']);
         });
 
-//oder 
+        //oder 
         Route::group(['prefix' => 'order'], function () {
             Route::get('/index', [OrderController::class, 'index']);
             Route::get('/detail', [OrderController::class, 'detail']);
@@ -55,7 +55,7 @@ Route::group(['prefix' => 'user'], function () {
     Route::get('/profile', [UserController::class, 'getProfile'])->middleware(['jwt.cookie', 'auth:api']);
     Route::get('/activate-account/{user_id}/{token}', [UserController::class, 'activateAccount'])->name('activate-account');
     Route::group(['middleware' => ['api', 'auth:api']], function () {
-        Route::post('/update', [UserController::class, 'update']); 
+        Route::post('/update', [UserController::class, 'update']);
         Route::post('/logout', [UserController::class, 'logout']);
         Route::post('/refresh', [UserController::class, 'refresh']);
         Route::get('/my_orders', [UserController::class, 'myOrders']);
@@ -72,6 +72,7 @@ Route::group(['prefix' => 'user'], function () {
 
         Route::post('/update_cart_quantity', [CartController::class, 'updateQuantity']);
         Route::post('/updateSizeColor', [CartController::class, 'updateSizeColor']);
+        Route::post('/cancelOrder', [OrderController::class, 'cancelOrder']);
 
         Route::post('/buynows', [CartController::class, 'buyNow']);
 
@@ -83,20 +84,24 @@ Route::group(['prefix' => 'user'], function () {
         Route::get('getall/comments', [ApiCommentController::class, 'getCommentsByProduct']);
         Route::delete('delete/comments/{comment_id}', [ApiCommentController::class, 'deleteComment']);
         Route::post('update/comments/{comment_id}', [ApiCommentController::class, 'editCommentByUser']);
-        
-    }); 
+    });
 
     //Payment Vnpay
     Route::post('/create_paymentVnPay', [PaymentController::class, 'paymentVnPay']);
 });
+Route::get('commentsByProductId/{productId}', [ApiCommentController::class, 'showComments']);
 
 // Product routes
 Route::post('add/products', [ProductControllers::class, 'createProducts']);
 Route::get('list/products', [ProductControllers::class, 'showProduct']);
+Route::get('listall/products', [ProductControllers::class, 'listAll']);
+
 Route::get('shop/products', [ProductControllers::class, 'showShopProducts']);
 Route::get('showdetail/products/{id}', [ProductControllers::class, 'showDetail']);
 Route::delete('delete/products/{id}', [ProductControllers::class, 'destroy']);
+Route::post('restore/products/{id}', [ProductControllers::class, 'restoreProduct']);
 Route::post('update/products/{id}', [ProductControllers::class, 'updateProduct']);
+Route::get('/getDeletedProducts', [ProductControllers::class, 'getDeletedProducts']);
 Route::get('/products/category/{category_id}', [ProductControllers::class, 'getProductsByCategory']);
 
 // Category routes
@@ -104,7 +109,7 @@ Route::post('categories', [CategoryController::class, 'create'])->name('categori
 Route::get('/categories/{id}', [CategoryController::class, 'show']);
 Route::get('getall/categories', [CategoryController::class, 'GetAll'])->name('categories.GetAll');
 Route::put('categories/{id}', [CategoryController::class, 'update'])->name('categories.updates');
-Route::delete('categories/{id}', [CategoryController::class, 'destroy'])->name('categories.destroy');
+Route::delete('categories/delete/{id}', [CategoryController::class, 'destroy'])->name('categories.destroy');
 Route::post('/category/restore/{id}', [CategoryController::class, 'restoreCategory']);
 Route::post('/category/forceDelete/{id}', [CategoryController::class, 'forceDelete']);
 Route::get('/getDeletedCategories', [CategoryController::class, 'getDeletedCategories']);
@@ -125,9 +130,9 @@ Route::delete('/sizes/{id}', [SizeController::class, 'destroy']);
 
 
 // Variant routes
-Route::post('products/{productId}/variants', [VariantController::class, 'creates']); // Route để tạo mới variant
+Route::post('products/creat', [VariantController::class, 'creates']); // Route để tạo mới variant
 Route::get('productsvariants/{id}', [VariantController::class, 'show']);
-Route::get('products/{productId}/variants', [VariantController::class, 'GetAll']); // Route để lấy tất cả variants
+Route::get('products/allvariants', [VariantController::class, 'GetAll']); // Route để lấy tất cả variants
 Route::put('variants/{id}', [VariantController::class, 'updates']); // Route để cập nhật variant
 Route::delete('variants/{id}', [VariantController::class, 'destroy']); // Route để xóa variant
 
@@ -148,11 +153,11 @@ Route::delete('voucher/{voucher}', [VoucherController::class, 'destroy']);
 Route::post('/payment/create', [MomoController::class, 'createPayment']);
 Route::get('/payment-return', [MomoController::class, 'paymentReturn']);
 
-Route::get('/showAllOrder', [OrderController::class,'showAllOrder']);
-Route::get('/totalMoney', [OrderController::class,'totalMoney']);
+Route::get('/showAllOrder', [OrderController::class, 'showAllOrder']);
+Route::get('/totalMoney', [OrderController::class, 'totalMoney']);
 
-Route::get('/totalPr', [ProductControllers::class,'totalProduct']);
-Route::get('/totalUser',[ControllersUserController::class,'totalUser']);
+Route::get('/totalPr', [ProductControllers::class, 'totalProduct']);
+Route::get('/totalUser', [ControllersUserController::class, 'totalUser']);
 
 
 
@@ -167,3 +172,7 @@ Route::get('top-selling-products-by-month/{year}/{month}', [OrderController::cla
 Route::post('log-search', [ProductControllers::class, 'incrementSearchCount']);
 Route::get('getTopSearchedProducts/{year}/{month}', [ProductControllers::class, 'getTopSearchedProducts']);
 Route::get('getProductVariants/{cartItemId}', [CartController::class, 'getProductVariants']);
+
+Route::get('/login/google', [UserController::class, 'redirectToGoogle']);
+Route::post('/login/googlejwt', [UserController::class, 'googleLoginJWT']);
+Route::get('/login/google/callback', [UserController::class, 'handleGoogleCallback']);

@@ -28,6 +28,8 @@ class Product extends Model
         'image_description', // JSON field for image descriptions
         'created_at',
         'updated_at',
+        'search_count',
+        'search_count_date',
     ];
 
 
@@ -50,8 +52,9 @@ class Product extends Model
     {
         return $this->hasMany(ProductImage::class, 'product_id'); // Assuming you have a ProductImage model for images
     }
-    
-    public function productItem() {
-        return $this->belongsTo(ProductItems::class, 'product_item_id');
+
+    public function productItem()
+    {
+        return $this->belongsTo(ProductItems::class, 'product_id', 'id');
     }
 }

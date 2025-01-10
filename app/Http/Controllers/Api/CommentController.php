@@ -20,7 +20,7 @@ class CommentController extends Controller
                 'product_item_id' => 'required|exists:product_items,id',
                 'content' => 'required|string|max:500',
                 'rating' => 'required|max:5|min:1',
-                'image'=> 'image|mimes:jpg,jpeg,webp,gif,png'
+                'image'=> 'image|mimes:jpg,jpeg,webp,gif,png,mp4'
             ]);
             // Kiểm tra xem user đã đăng nhập chưa
             $user = auth()->user(); 
@@ -86,12 +86,30 @@ class CommentController extends Controller
 
     }
 
-    // hàm lấy all comments sử dụng trong trang chi tiết sản phẩm (hàm lấy bình luận của tất cả user)
-    public function getCommentsByProduct() {
-        $comments = Comment::all();
+    private function getCommentsByProductId($productId) {
+        return DB::table('comment')
+            ->join('product_items', 'comment.product_item_id', '=', 'product_items.id')
+            ->join('users', 'comment.user_id', '=', 'users.id')
+            ->join('colors', 'product_items.color_id', '=', 'colors.id') // Liên kết với bảng colors
+            ->join('sizes', 'product_items.size_id', '=', 'sizes.id')
+            ->where('product_items.product_id', $productId)
+            ->select(
+                    'comment.content', 'comment.rating','comment.created_at', 'comment.image', 'product_items.color_id',
+                    DB::raw("CONCAT(users.firt_name, ' ', users.last_name) as name "),
+                    'users.image_user',
+                    'colors.name as color_name',
+                    'sizes.name as size_name'
+                 )
+            ->get();
+    }
+
+    // truyền product_id vào để lấy ra tất cả bình luận của sản phẩm đó
+    public function showComments($productId) {
+        $comments = $this->getCommentsByProductId($productId);
         return response()->json([
-            'data' => $comments
-        ], 200);
+            'product_id' => $productId,
+            'comments' => $comments,
+        ]);
     }
 
     //hàm lấy tắt cả các bình luận của user 

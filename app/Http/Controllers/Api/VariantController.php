@@ -9,21 +9,21 @@ use Illuminate\Http\Request;
 
 class VariantController extends Controller
 {
-     // Lấy thông tin sản phẩm cùng các biến thể
+    // Lấy thông tin sản phẩm cùng các biến thể
     public function show($id)
     {
-         // Tìm sản phẩm theo ID và load các biến thể
+        // Tìm sản phẩm theo ID và load các biến thể
         $product = Product::with([
-             'productItems.color', // Lấy thông tin màu sắc
-             'productItems.size'   // Lấy thông tin kích thước
+            'variants.color', // Lấy thông tin màu sắc
+            'variants.size'   // Lấy thông tin kích thước
         ])->find($id);
-    
-         // Nếu không tìm thấy sản phẩm
+
+        // Nếu không tìm thấy sản phẩm
         if (!$product) {
             return response()->json(['message' => 'Product not found'], 404);
         }
-    
-         // Trả về thông tin sản phẩm cùng các biến thể
+
+        // Trả về thông tin sản phẩm cùng các biến thể
         return response()->json([
             'product' => [
                 'id' => $product->id,
@@ -35,41 +35,55 @@ class VariantController extends Controller
                 'price_sale' => $product->price_sale,
                 'total_quantity' => $product->total_quantity,
                 'image_product' => $product->image_product,
-                 'image_description' => json_decode($product->image_description), // Convert JSON string to array
-             ],
-             'variants' => $product->productItems->map(function ($variant) {
-                 return [
-                     'id' => $variant->id,
-                     'description' => $variant->description,
-                     'quantity' => $variant->quantity,
-                     'status' => $variant->status,
-                     'type' => $variant->type,
-                     'color' => $variant->color ? $variant->color->hex : null, // Lấy tên màu
-                     'size' => $variant->size ? $variant->size->name : null,   // Lấy tên size
-                 ];
-             }),
-         ], 200);
+                'image_description' => json_decode($product->image_description), // Convert JSON string to array
+            ],
+            'variants' => $product->variants->map(function ($variant) {
+                return [
+                    'id' => $variant->id,
+                    'description' => $variant->description,
+                    'quantity' => $variant->quantity,
+                    'status' => $variant->status,
+                    'type' => $variant->type,
+                    'color' => $variant->color ? $variant->color->hex : null, // Lấy tên màu
+                    'size' => $variant->size ? $variant->size->name : null,   // Lấy tên size
+                    'color_id' => $variant->color_id, // Thêm color_id
+                    'size_id' => $variant->size_id,   // Thêm size_id
+                ];
+            }),
+        ], 200);
     }
-    
+
     // Tạo mới variant
     public function creates(Request $request)
     {
+        // Validate dữ liệu mảng
         $validated = $request->validate([
-            'product_id' => 'required|exists:products,id', // Validate product_id
-            'size_id' => 'required|exists:sizes,id',
-            'color_id' => 'required|exists:colors,id',
-            'quatity' => 'required|integer|min:1',
+            '*.product_id' => 'required|exists:products,id', // Validate mỗi product_id
+            '*.size_id' => 'required|exists:sizes,id',       // Validate mỗi size_id
+            '*.color_id' => 'required|exists:colors,id',     // Validate mỗi color_id
+            '*.quantity' => 'required|integer|min:1',        // Validate mỗi quantity
         ]);
 
-        $variant = ProductVariant::create([
-            'product_id' => $request->input('product_id'), // Lưu product_id
-            'size_id' => $request->input('size_id'),
-            'color_id' => $request->input('color_id'),
-            'quatity' => $request->input('quatity'),
-        ]);
+        // Khởi tạo mảng để chứa các biến thể đã tạo
+        $variants = [];
 
-        return response()->json(['data' => $variant], 201);
+        // Lặp qua từng phần tử trong mảng và tạo các biến thể
+        foreach ($request->all() as $variantData) {
+            $variant = ProductVariant::create([
+                'product_id' => $variantData['product_id'],
+                'size_id' => $variantData['size_id'],
+                'color_id' => $variantData['color_id'],
+                'quantity' => $variantData['quantity'],
+            ]);
+            // Thêm biến thể đã tạo vào mảng
+            $variants[] = $variant;
+        }
+
+        // Trả về phản hồi với tất cả các biến thể đã tạo
+        return response()->json(['data' => $variants], 201);
     }
+
+
 
     // Lấy tất cả variants
     public function GetAll(Request $request)
@@ -87,14 +101,14 @@ class VariantController extends Controller
         $validated = $request->validate([
             'size_id' => 'required|exists:sizes,id',
             'color_id' => 'required|exists:colors,id',
-            'quatity' => 'required|integer',
+            'quantity' => 'required|integer',
         ]);
 
         if ($validated) {
             $variant = ProductVariant::where('id', $id)->update([
                 'size_id' => $request->input('size_id'),
                 'color_id' => $request->input('color_id'),
-                'quatity' => $request->input('quatity'),
+                'quantity' => $request->input('quantity'),
             ]);
         }
 
@@ -102,6 +116,7 @@ class VariantController extends Controller
             'data' => $variant
         ], 200);
     }
+
 
     // Xóa variant
     public function destroy(Request $request, string $id)
