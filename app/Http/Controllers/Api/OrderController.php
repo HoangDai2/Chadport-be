@@ -345,6 +345,7 @@ class OrderController extends Controller
                         if ($productItem) {
                             $product = $productItem->product;
                             return [
+                                'product_id' => $product->id, // Thêm order_id
                                 'order_id' => $orderDetail->order_id, // Thêm order_id
                                 'product_item_id' => $productItem->id,
                                 'product_name' => $product->name, // Lấy tên sản phẩm từ bảng Product
