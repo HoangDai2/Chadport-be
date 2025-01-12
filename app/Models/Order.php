@@ -24,6 +24,7 @@ class Order extends Model
         'note_admin',
         'check_refund',
         'cancel_note',
+        'printed'
     ];
 
     //  Relationship

@@ -1,0 +1,353 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Http\Resources\VoucherResource;
+use App\Models\Voucher;
+use Illuminate\Http\Request;
+use App\Models\VoucherDetails;
+use App\Models\Cart_item;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Database\QueryException;
+
+
+
+class VoucherController_v2 extends Controller
+{
+    public function assignToUser(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'voucher_id' => 'required|exists:vouchers,id',
+        ]);
+
+        // Lấy thông tin voucher
+        $voucher = Voucher::findOrFail($request->voucher_id);
+
+        // Kiểm tra nếu voucher đã hết lượt sử dụng
+        if ($voucher->usage_limit <= $voucher->used_count) {
+            return response()->json([
+                'message' => 'Voucher này đã đạt giới hạn sử dụng và không thể gán thêm.',
+            ], 400);
+        }
+
+        // Kiểm tra nếu voucher đã được gán cho user
+        $existingAssignment = VoucherDetails::where('user_id', $request->user_id)
+            ->where('voucher_id', $request->voucher_id)
+            ->exists();
+
+        if ($existingAssignment) {
+            return response()->json([
+                'message' => 'Voucher đã được gán cho người dùng này trước đó.',
+            ], 400);
+        }
+
+        // Gán voucher cho user
+        VoucherDetails::create([
+            'user_id' => $request->user_id,
+            'voucher_id' => $request->voucher_id,
+        ]);
+
+        return response()->json(['message' => 'Voucher assigned to user successfully'], 201);
+    }
+
+
+
+    public function getUserVouchers($userId)
+    {
+        // Lấy danh sách voucher của user
+        $vouchers = VoucherDetails::where('user_id', $userId)
+            ->with('voucher')
+            ->get();
+
+        return response()->json(['vouchers' => $vouchers]);
+    }
+    public function getUserVouchersUser(Request $request)
+    {
+        try {
+            // Lấy thông tin user từ token
+            $user = auth()->user();
+
+            if (!$user) {
+                return response()->json(['message' => 'Unauthorized. Please log in.'], 401);
+            }
+
+            // Lấy danh sách voucher của user
+            $vouchers = VoucherDetails::where('user_id', $user->id)
+                ->with('voucher') // Gắn quan hệ để lấy thông tin voucher
+                ->get();
+
+            return response()->json([
+                'message' => 'Successfully fetched user vouchers.',
+                'vouchers' => $vouchers,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to fetch vouchers.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    // Tạo voucher
+    public function create(Request $request)
+    {
+        // Validate dữ liệu đầu vào
+        $request->validate([
+            'code' => 'required|unique:vouchers,code|max:50', // Mã voucher phải duy nhất
+            'discount_type' => 'required|in:fixed,percentage', // Loại giảm giá
+            'discount_value' => [
+                'required',
+                'numeric',
+                'min:1',
+                function ($attribute, $value, $fail) use ($request) {
+                    if ($request->discount_type === 'percentage' && $value > 100) {
+                        $fail('Discount value cannot exceed 100% for percentage discounts.');
+                    }
+                },
+            ],
+            'expires_at' => 'required|date', // Ngày hết hạn
+            'usage_limit' => 'required|integer|min:1', // Giới hạn số lần sử dụng
+        ], [
+            'code.unique' => 'Voucher code already exists.',
+            'discount_value.min' => 'Discount value must be greater than 0.',
+        ]);
+
+        // Tạo voucher mới
+        $voucher = Voucher::create([
+            'code' => $request->code,
+            'discount_type' => $request->discount_type,
+            'discount_value' => $request->discount_value,
+            'expires_at' => $request->expires_at,
+            'usage_limit' => $request->usage_limit,
+            'used_count' => 0, // Ban đầu số lần sử dụng là 0
+        ]);
+
+        // Trả về phản hồi thành công
+        return response()->json([
+            'message' => 'Voucher created successfully',
+            'voucher' => $voucher
+        ], 201);
+    }
+
+
+
+    // crud start
+    public function index()
+    {
+        $vouchers = Voucher::all();
+        return response()->json($vouchers);
+    }
+
+    // Lấy chi tiết một voucher
+    public function show($id)
+    {
+        $voucher = Voucher::findOrFail($id);
+        return response()->json($voucher);
+    }
+
+    // Cập nhật voucher
+    public function update(Request $request, $id)
+    {
+        $voucher = Voucher::findOrFail($id);
+
+        $request->validate([
+            'code' => 'unique:vouchers,code,' . $voucher->id,
+            'discount_type' => 'in:fixed,percentage',
+            'discount_value' => 'numeric|min:0',
+            'expires_at' => 'date',
+            'usage_limit' => 'integer|min:1',
+        ]);
+
+        $voucher->update($request->all());
+        return response()->json(['message' => 'Voucher updated successfully', 'voucher' => $voucher]);
+    }
+    public function delete(Request $request)
+    {
+        // Kiểm tra dữ liệu đầu vào
+        $request->validate([
+            'id' => [
+                'required',
+                function ($attribute, $value, $fail) {
+                    if (is_array($value)) {
+                        if (count($value) < 2) {
+                            $fail('If id is an array, it must contain at least 2 elements.');
+                        }
+                    } elseif (!is_numeric($value)) {
+                        $fail('If id is not an array, it must be a numeric value.');
+                    }
+                }
+            ],
+            'id.*' => 'integer|exists:vouchers,id', // Nếu là mảng, từng phần tử phải là số nguyên và tồn tại
+        ]);
+
+        // Xử lý logic xóa
+        if (is_array($request->id)) {
+            // Xóa nhiều ID
+            $ids = $request->id;
+        } else {
+            // Xóa một ID
+            $ids = [$request->id];
+        }
+
+        // Thực hiện xóa
+        $deleted = Voucher::whereIn('id', $ids)->delete();
+
+        // Trả về phản hồi
+        if ($deleted) {
+            return response()->json([
+                'message' => 'Voucher(s) deleted successfully.',
+                'deleted_count' => $deleted
+            ]);
+        }
+
+        return response()->json(['error' => 'No vouchers were deleted.'], 400);
+    }
+
+    // end  crud
+
+
+    // Gán voucher cho nhiều user
+    public function assignToUsers(Request $request)
+    {
+        $request->validate([
+            'user_ids' => 'required|array',
+            'user_ids.*' => 'exists:users,id',
+            'voucher_id' => 'required|exists:vouchers,id',
+        ]);
+
+        $voucherId = $request->voucher_id;
+        $voucher = Voucher::findOrFail($voucherId); // Lấy thông tin voucher
+
+        // Kiểm tra nếu voucher đã đạt giới hạn sử dụng
+        if ($voucher->usage_limit <= $voucher->used_count) {
+            return response()->json([
+                'message' => 'Voucher này đã đạt giới hạn sử dụng và không thể gán thêm.',
+            ], 400);
+        }
+
+        $assignedUsers = []; // Danh sách user được gán voucher thành công
+        $skippedUsers = []; // Danh sách user đã có voucher trước đó
+
+        foreach ($request->user_ids as $userId) {
+            // Kiểm tra nếu voucher đã được gán cho user
+            $exists = VoucherDetails::where('user_id', $userId)
+                ->where('voucher_id', $voucherId)
+                ->exists();
+
+            if ($exists) {
+                $skippedUsers[] = $userId; // Bỏ qua user nếu đã được gán voucher
+                continue;
+            }
+
+            // Kiểm tra nếu đã vượt quá usage_limit
+            if ($voucher->usage_limit <= $voucher->used_count + count($assignedUsers)) {
+                return response()->json([
+                    'message' => 'Voucher đã đạt giới hạn sử dụng và không thể gán thêm.',
+                    'assigned_users' => $assignedUsers,
+                    'skipped_users' => $skippedUsers,
+                ], 400);
+            }
+
+            // Thêm voucher mới cho user
+            try {
+                VoucherDetails::create([
+                    'user_id' => $userId,
+                    'voucher_id' => $voucherId,
+                ]);
+
+                $assignedUsers[] = $userId; // Ghi lại user được gán thành công
+            } catch (QueryException $e) {
+                // Nếu có lỗi khác xảy ra
+                return response()->json(['error' => 'Đã xảy ra lỗi khi gán voucher cho user: ' . $userId], 500);
+            }
+        }
+
+        // Cập nhật số lần sử dụng voucher
+        $voucher->increment('used_count', count($assignedUsers));
+
+        return response()->json([
+            'message' => 'Voucher processing completed',
+            'assigned_users' => $assignedUsers, // Người dùng được gán voucher thành công
+            'skipped_users' => $skippedUsers, // Người dùng đã bị bỏ qua
+        ]);
+    }
+
+    public function applyVoucherToCart(Request $request)
+    {
+        $user = auth()->user();
+
+        // Kiểm tra nếu người dùng chưa đăng nhập
+        if (!$user) {
+            return response()->json(['error' => 'Bạn cần đăng nhập để áp dụng mã giảm giá.'], 401);
+        }
+
+        // Kiểm tra quyền (role_id phải bằng 3)
+        if ($user->role_id != 3) {
+            return response()->json(['error' => 'Bạn không có quyền áp dụng mã giảm giá.'], 403);
+        }
+
+        $request->validate([
+            'cart_id' => 'required|exists:cart_item,cart_id',
+            'voucher_code' => 'required|exists:vouchers,code',
+        ]);
+
+        // Lấy mã giảm giá
+        $voucher = Voucher::where('code', $request->voucher_code)
+            ->where('expires_at', '>', now())
+            ->whereColumn('used_count', '<', 'usage_limit')
+            ->first();
+
+        if (!$voucher) {
+            return response()->json(['error' => 'Voucher không hợp lệ hoặc đã hết hạn.'], 400);
+        }
+
+        // Kiểm tra nếu tài khoản không có voucher trong bảng `voucher_details`
+        $hasVoucher = DB::table('voucher_details')
+            ->where('voucher_id', $voucher->id)
+            ->where('user_id', $user->id)
+            ->exists();
+
+        if (!$hasVoucher) {
+            return response()->json(['error' => 'Tài khoản của bạn không có mã giảm giá này.'], 403);
+        }
+
+        // Kiểm tra nếu voucher này đã được áp dụng trước đó
+        $isVoucherUsed = DB::table('voucher_details')
+            ->where('voucher_id', $voucher->id)
+            ->where('user_id', $user->id)
+            ->whereNotNull('used_at') // Kiểm tra nếu đã được sử dụng
+            ->exists();
+
+        if ($isVoucherUsed) {
+            return response()->json(['error' => 'Bạn đã sử dụng mã giảm giá này trước đó.'], 403);
+        }
+
+        // Lấy các sản phẩm trong giỏ hàng có trạng thái checked = 1
+        $cartItems = Cart_item::where('cart_id', $request->cart_id)
+            ->where('checked', 1)
+            ->get();
+
+        if ($cartItems->isEmpty()) {
+            return response()->json(['error' => 'Không có sản phẩm nào được chọn để áp dụng mã giảm giá.'], 400);
+        }
+
+        // Áp dụng voucher cho các sản phẩm checked = 1
+        foreach ($cartItems as $item) {
+            $item->voucher_id = $voucher->id;
+            $item->save();
+        }
+        $totalDiscountedAmount = $cartItems->sum(function ($item) {
+            return $item->price * $item->quantity;
+        });
+        // Phản hồi thông tin
+        return response()->json([
+            'message' => 'Voucher đã được áp dụng thành công.',
+            'voucher_id' => $voucher->id,
+            'discount_value' => $voucher->discount_value,
+            'cart_items' => $cartItems,
+            'total_discounted_amount' => $totalDiscountedAmount,
+        ]);
+    }
+}

@@ -458,6 +458,7 @@ class OrderController extends Controller
                     'billing_address' => $order->billing_address,
                     'created_at' => $order->created_at,
                     'updated_at' => $order->updated_at,
+                    'printed' => $order->printed,
                     'products' => $details
                 ];
             }
@@ -474,6 +475,56 @@ class OrderController extends Controller
             ], 500);
         }
     }
+    public function updateOrdersPrintedStatus(Request $request)
+    {
+        try {
+            // Lấy giá trị từ request
+            $id = $request->input('id');
+
+            // Kiểm tra nếu chỉ nhận được một số thì chuyển thành mảng
+            if (is_numeric($id)) {
+                $id = [$id];
+            }
+
+            // Kiểm tra nếu không phải mảng hoặc mảng rỗng
+            if (!is_array($id) || empty($id)) {
+                return response()->json([
+                    'message' => 'Dữ liệu không hợp lệ. Vui lòng gửi ID hoặc mảng ID.',
+                ], 400);
+            }
+
+            // Tìm các đơn hàng theo danh sách ID
+            $orders = Order::whereIn('id', $id)->get();
+
+            if ($orders->isEmpty()) {
+                return response()->json([
+                    'message' => 'Không tìm thấy đơn hàng với các ID đã cung cấp.',
+                ], 404);
+            }
+
+            // Cập nhật trạng thái printed cho các đơn hàng
+            foreach ($orders as $order) {
+                $order->printed = true; // Hoặc $request->input('printed') nếu cần cập nhật giá trị từ request
+                $order->save();
+            }
+
+            return response()->json([
+                'message' => 'Cập nhật trạng thái in thành công.',
+                'data' => $orders->map(function ($order) {
+                    return [
+                        'id' => $order->id,
+                        'printed' => $order->printed,
+                    ];
+                }),
+            ], 200);
+        } catch (Exception $e) {
+            return response()->json([
+                'message' => 'Lỗi khi cập nhật trạng thái in.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
 
     public function confirmRefund(Request $request)
     {
@@ -742,53 +793,5 @@ class OrderController extends Controller
         }
     }
 
-    public function updateOrdersPrintedStatus(Request $request)
-    {
-        try {
-            // Lấy giá trị từ request
-            $id = $request->input('id');
-
-            // Kiểm tra nếu chỉ nhận được một số thì chuyển thành mảng
-            if (is_numeric($id)) {
-                $id = [$id];
-            }
-
-            // Kiểm tra nếu không phải mảng hoặc mảng rỗng
-            if (!is_array($id) || empty($id)) {
-                return response()->json([
-                    'message' => 'Dữ liệu không hợp lệ. Vui lòng gửi ID hoặc mảng ID.',
-                ], 400);
-            }
-
-            // Tìm các đơn hàng theo danh sách ID
-            $orders = Order::whereIn('id', $id)->get();
-
-            if ($orders->isEmpty()) {
-                return response()->json([
-                    'message' => 'Không tìm thấy đơn hàng với các ID đã cung cấp.',
-                ], 404);
-            }
-
-            // Cập nhật trạng thái printed cho các đơn hàng
-            foreach ($orders as $order) {
-                $order->printed = true; // Hoặc $request->input('printed') nếu cần cập nhật giá trị từ request
-                $order->save();
-            }
-
-            return response()->json([
-                'message' => 'Cập nhật trạng thái in thành công.',
-                'data' => $orders->map(function ($order) {
-                    return [
-                        'id' => $order->id,
-                        'printed' => $order->printed,
-                    ];
-                }),
-            ], 200);
-        } catch (Exception $e) {
-            return response()->json([
-                'message' => 'Lỗi khi cập nhật trạng thái in.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
+    
 }
