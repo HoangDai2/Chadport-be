@@ -27,6 +27,8 @@ use Tymon\JWTAuth\Exceptions\TokenExpiredException;
 use Tymon\JWTAuth\Exceptions\TokenInvalidException;
 use Google\Client;
 use Laravel\Socialite\Facades\Socialite;
+use App\Models\Voucher;
+
 
 class UserController extends Controller
 {
@@ -52,8 +54,28 @@ class UserController extends Controller
                 'role_id' => 3,
                 'status' => "active"
             ];
-
             $user = User::create($userData);
+
+            // Tạo voucher mặc định
+
+            $voucherData = [
+                'code' => 'WELCOME_' . strtoupper(Str::random(5)), // Mã voucher ngẫu nhiên
+                'discount_type' => 'fixed', // Loại giảm giá: giảm cố định
+                'discount_value' => 50000, // Giá trị giảm: 50,000
+                'expires_at' => now()->addMonth(), // Hạn sử dụng: 1 tháng
+                'usage_limit' => 1, // Chỉ sử dụng được 1 lần
+                'used_count' => 0 // Chưa được sử dụng
+            ];
+            $voucher = Voucher::create($voucherData);
+
+            // Gán voucher cho người dùng mới
+            DB::table('voucher_details')->insert([
+                'user_id' => $user->id,
+                'voucher_id' => $voucher->id,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
 
             // $activationLink = route('activate-account', ['user_id' => $user->user_id, 'token' => $activationToken]);  // send main\l --> PT SMTP laravel | hhtps
 
@@ -62,12 +84,10 @@ class UserController extends Controller
             // Mail::to($user->email)->send(new RegisterUserMail($user, $activationLink));
 
             return response()->json([
-                'message' => 'Successfully created user',
-                'user' => $user
+                'message' => 'Successfully created user and assigned default voucher',
+                'user' => $user,
+                'voucher' => $voucher
             ], 201);
-
-            
-
         } catch (Exception $e) {
             return response()->json([
                 'error' => 'Could not register user',
@@ -91,7 +111,7 @@ class UserController extends Controller
 
             // Kiểm tra trạng thái tài khoản
             if ($user->status === 'inactive') {
-                return response()->json(['error' => 'Your account is locked. Please contact support.'], 403); 
+                return response()->json(['error' => 'Your account is locked. Please contact support.'], 403);
             }
 
             // Kiểm tra thông tin đăng nhập và tạo token
@@ -128,7 +148,6 @@ class UserController extends Controller
                 false,     // Đặt là false nếu bạn đang dùng HTTP (phát triển cục bộ)
                 true       // HTTP-only
             );
-
         } catch (JWTException $e) {
             return response()->json([
                 'error' => 'Could not create token',
@@ -146,21 +165,21 @@ class UserController extends Controller
     public function activateAccount($user_id, $token)
     {
         $cachedToken = Cache::get('activation_token_' . $user_id);
-    
+
         if (!$cachedToken || $cachedToken !== $token) {
             return response()->json(['error' => 'Invalid or expired activation link'], 403);
         }
-    
+
         $user = User::find($user_id);
         if (!$user) {
             return response()->json(['error' => 'User not found'], 404);
         }
-    
+
         $user->status = 1;
         $user->save();
-    
+
         Cache::forget('activation_token_' . $user_id);
-    
+
         return response()->json(['message' => 'Account activated successfully!'], 200);
     }
 
@@ -172,7 +191,6 @@ class UserController extends Controller
             return response()->json([
                 'message' => 'Successfully logged out',
             ], 200);
-
         } catch (Exception $e) {
             return response()->json([
                 'error' => 'Could not log out',
@@ -186,35 +204,32 @@ class UserController extends Controller
         try {
             $token = JWTAuth::getToken();
 
-    
+
             if (!$token) {
                 return response()->json([
                     'error' => 'Token not provided',
                 ], 400);
             }
-    
+
             JWTAuth::setToken($token);
-    
+
             // Refresh token
             $newToken = JWTAuth::refresh($token);
-    
+
             return response()->json([
                 'message' => 'Token refreshed successfully',
                 'token' => $newToken
             ], 200);
-    
         } catch (TokenExpiredException $e) {
             return response()->json([
                 'error' => 'Token has expired',
                 'message' => $e->getMessage()
             ], 401);
-    
         } catch (TokenInvalidException $e) {
             return response()->json([
                 'error' => 'Token is invalid',
                 'message' => $e->getMessage()
             ], 401);
-    
         } catch (JWTException $e) {
             return response()->json([
                 'error' => 'Could not refresh token',
@@ -231,7 +246,7 @@ class UserController extends Controller
 
             // Chuẩn bị dữ liệu cần cập nhật
             $updateData = [
-             
+
                 'gender' => $request->input('gender'),
                 'birthday' => $request->input('birthday'),
                 'address' => $request->input('address'),
@@ -257,7 +272,6 @@ class UserController extends Controller
             $user = User::find($user->id);
 
             return response()->json(['message' => 'User information updated successfully', 'user' => $user], 200);
-
         } catch (Exception $e) {
             return response()->json([
                 'error' => 'Could not update user information',
@@ -291,7 +305,6 @@ class UserController extends Controller
                     'phone_number' => $user->phone_number,
                 ],
             ], 200);
-
         } catch (Exception $e) {
             return response()->json(['error' => 'Could not retrieve user profile', 'message' => $e->getMessage()], 500);
         }
@@ -307,7 +320,6 @@ class UserController extends Controller
                 'message' => 'User list retrieved successfully',
                 'users' => $users
             ], 200);
-
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'Could not retrieve user list',
@@ -332,7 +344,6 @@ class UserController extends Controller
                 'message' => 'User status updated successfully',
                 'user' => $user
             ], 200);
-
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json([
                 'error' => 'User not found',
@@ -349,18 +360,19 @@ class UserController extends Controller
 
     public function myOrders()
     {
-        try{
-            $data = Order::with(['user', 'voucher', 'orderDetails.productItem.product', 
-                'orderDetails.productItem.color', 
-                'orderDetails.productItem.size'])
+        try {
+            $data = Order::with([
+                'user', 'voucher', 'orderDetails.productItem.product',
+                'orderDetails.productItem.color',
+                'orderDetails.productItem.size'
+            ])
                 ->where('user_id', Auth::user()->id)
                 ->get();
 
-                return response()->json([
-                    'message' => 'Danh sách đơn hàng của bạn',
-                    'data' => $data
-                ], 200);
-
+            return response()->json([
+                'message' => 'Danh sách đơn hàng của bạn',
+                'data' => $data
+            ], 200);
         } catch (\Exception $e) {
             Log::error("Error processing order: " . $e->getMessage());
 
@@ -552,5 +564,4 @@ class UserController extends Controller
 
         return response()->json(['error' => 'Invalid token'], 401);
     }
-
 }
