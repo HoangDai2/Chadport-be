@@ -15,11 +15,11 @@ class PaymentController extends Controller
 
         $vnp_Command =  "pay";
         $vnp_TmnCode = "F534FO6G";
-        $vnp_Amount = $request->amount*100;
+        $vnp_Amount = $request->amount * 100;
         $vnp_CurrCode = "VND";
         $vnp_IpAddr = "http://127.0.0.1:8000";
         $vnp_Locale = "vn";
-        $vnp_OrderInfo = "Thanh toán mã đơn hàng" .' '. $request->order_number .'-'. $request->order_id;
+        $vnp_OrderInfo = "Thanh toán mã đơn hàng" . ' ' . $request->order_number . '-' . $request->order_id;
         $vnp_OrderType = "billpayment";
         $vnp_Returnurl = "http://127.0.0.1:8000/api/return_paymentVnPay";
         // $vnp_TxnRef = "Thanh toán mã đơn hàng" .' '. $request->order_number;
@@ -64,10 +64,10 @@ class PaymentController extends Controller
             }
             $query .= urlencode($key) . "=" . urlencode($value) . '&';
         }
-        
+
         $vnp_Url = $vnp_Url . "?" . $query;
         if (isset($vnp_HashSecret)) {
-            $vnpSecureHash =   hash_hmac('sha512', $hashdata, $vnp_HashSecret);//  
+            $vnpSecureHash =   hash_hmac('sha512', $hashdata, $vnp_HashSecret); //  
             $vnp_Url .= 'vnp_SecureHash=' . $vnpSecureHash;
         }
 
@@ -76,12 +76,11 @@ class PaymentController extends Controller
             'message' => 'Tạo thanh toán thành công',
             'url_payment' => $vnp_Url
         ], 200);
-
     }
 
 
     public function returnPaymentVnPay(Request $request)
-    { 
+    {
         $vnp_SecureHash = $_GET['vnp_SecureHash'];
         $vnp_HashSecret = "DH63N76YR1W0OCH6YTF86GECMLWR99UJ";
         $inputData = array();
@@ -89,8 +88,8 @@ class PaymentController extends Controller
             if (substr($key, 0, 4) == "vnp_") {
                 $inputData[$key] = $value;
             }
-        }   
-        
+        }
+
         unset($inputData['vnp_SecureHash']);
         ksort($inputData);
         $i = 0;
@@ -106,50 +105,119 @@ class PaymentController extends Controller
 
         $secureHash = hash_hmac('sha512', $hashData, $vnp_HashSecret);
         if ($secureHash == $vnp_SecureHash) {
-            if(!$_GET['vnp_ResponseCode']) {
+            if (!$_GET['vnp_ResponseCode']) {
                 return response()->json([
                     'message' => 'Không tồn tại phiên thanh toán',
                 ], 403);
             }
 
             $message_array = array(
-                "00"=>	"Giao dịch thành công",
-                "07"=>	"Trừ tiền thành công. Giao dịch bị nghi ngờ (liên quan tới lừa đảo, giao dịch bất thường).",
-                "09"=>	"Giao dịch không thành công do: Thẻ/Tài khoản của khách hàng chưa đăng ký dịch vụ InternetBanking tại ngân hàng.",
-                "10"=>	"Giao dịch không thành công do: Khách hàng xác thực thông tin thẻ/tài khoản không đúng quá 3 lần",
-                "11"=>	"Giao dịch không thành công do: Đã hết hạn chờ thanh toán. Xin quý khách vui lòng thực hiện lại giao dịch.",
-                "12"=>	"Giao dịch không thành công do: Thẻ/Tài khoản của khách hàng bị khóa.",
-                "13"=>	"Giao dịch không thành công do Quý khách nhập sai mật khẩu xác thực giao dịch (OTP). Xin quý khách vui lòng thực hiện lại giao dịch.",
-                "24"=>	"Giao dịch không thành công do: Khách hàng hủy giao dịch",
-                "51"=>	"Giao dịch không thành công do: Tài khoản của quý khách không đủ số dư để thực hiện giao dịch.",
-                "65"=>	"Giao dịch không thành công do: Tài khoản của Quý khách đã vượt quá hạn mức giao dịch trong ngày.",
-                "75"=>	"Ngân hàng thanh toán đang bảo trì.",
-                "79"=>	"Giao dịch không thành công do: KH nhập sai mật khẩu thanh toán quá số lần quy định. Xin quý khách vui lòng thực hiện lại giao dịch",
-                "99"=>	"Các lỗi khác (lỗi còn lại, không có trong danh sách mã lỗi đã liệt kê)",
+                "00" =>    "Giao dịch thành công",
+                "07" =>    "Trừ tiền thành công. Giao dịch bị nghi ngờ (liên quan tới lừa đảo, giao dịch bất thường).",
+                "09" =>    "Giao dịch không thành công do: Thẻ/Tài khoản của khách hàng chưa đăng ký dịch vụ InternetBanking tại ngân hàng.",
+                "10" =>    "Giao dịch không thành công do: Khách hàng xác thực thông tin thẻ/tài khoản không đúng quá 3 lần",
+                "11" =>    "Giao dịch không thành công do: Đã hết hạn chờ thanh toán. Xin quý khách vui lòng thực hiện lại giao dịch.",
+                "12" =>    "Giao dịch không thành công do: Thẻ/Tài khoản của khách hàng bị khóa.",
+                "13" =>    "Giao dịch không thành công do Quý khách nhập sai mật khẩu xác thực giao dịch (OTP). Xin quý khách vui lòng thực hiện lại giao dịch.",
+                "24" =>    "Giao dịch không thành công do: Khách hàng hủy giao dịch",
+                "51" =>    "Giao dịch không thành công do: Tài khoản của quý khách không đủ số dư để thực hiện giao dịch.",
+                "65" =>    "Giao dịch không thành công do: Tài khoản của Quý khách đã vượt quá hạn mức giao dịch trong ngày.",
+                "75" =>    "Ngân hàng thanh toán đang bảo trì.",
+                "79" =>    "Giao dịch không thành công do: KH nhập sai mật khẩu thanh toán quá số lần quy định. Xin quý khách vui lòng thực hiện lại giao dịch",
+                "99" =>    "Các lỗi khác (lỗi còn lại, không có trong danh sách mã lỗi đã liệt kê)",
             );
-
             if (isset($message_array[$_GET['vnp_ResponseCode']])) {
                 $order_info = $_GET['vnp_OrderInfo'];
-                $parts = explode('-',$order_info);
+                $parts = explode('-', $order_info);
                 $order_id = end($parts);
-                
+                $responseCode = $_GET['vnp_ResponseCode'];
+                $status = ($responseCode === "00") ? 'đã thanh toán' : 'chờ xử lí';
+
                 DB::table('order')->where('id', $order_id)->update([
-                    'status' => 'đã thanh toán',
+                    'status' =>
+                    $status,
                     'transaction_no' => $_GET['vnp_TransactionNo'],
                     'transaction_date' => $_GET['vnp_PayDate'],
                 ]);
 
-                return response()->json([
+                return redirect()->to('http://localhost:5173/payment-result?' . http_build_query([
                     'message' => $message_array[$_GET['vnp_ResponseCode']],
                     'code' => $_GET['vnp_ResponseCode'],
                     'order_id' => $order_id
-                ], 200);
+                ]));
             };
-        }else {
+        } else {
             return response()->json([
                 'message' => 'Chữ kí không hợp lệ',
             ], 403);
         }
     }
+    // public function returnPaymentVnPay(Request $request)
+    // {
+    //     $vnp_SecureHash = $_GET['vnp_SecureHash'];
+    //     $vnp_HashSecret = "DH63N76YR1W0OCH6YTF86GECMLWR99UJ"; // Replace with your secret key
+    //     $inputData = array();
+
+    //     foreach ($_GET as $key => $value) {
+    //         if (substr($key, 0, 4) == "vnp_") {
+    //             $inputData[$key] = $value;
+    //         }
+    //     }
+
+    //     unset($inputData['vnp_SecureHash']);
+    //     ksort($inputData);
+    //     $hashData = http_build_query($inputData, '', '&', PHP_QUERY_RFC3986);
+
+    //     $secureHash = hash_hmac('sha512', $hashData, $vnp_HashSecret);
+    //     if ($secureHash !== $vnp_SecureHash) {
+    //         return response()->json([
+    //             'message' => 'Chữ ký không hợp lệ',
+    //         ], 403);
+    //     }
+
+    //     if (!isset($_GET['vnp_ResponseCode'])) {
+    //         return response()->json([
+    //             'message' => 'Không tồn tại phiên thanh toán',
+    //         ], 403);
+    //     }
+
+    //     $message_array = [
+    //         "00" => "Giao dịch thành công",
+    //         "07" => "Trừ tiền thành công. Giao dịch bị nghi ngờ (liên quan tới lừa đảo, giao dịch bất thường).",
+    //         "09" => "Giao dịch không thành công do: Thẻ/Tài khoản của khách hàng chưa đăng ký dịch vụ InternetBanking tại ngân hàng.",
+    //         "10" => "Giao dịch không thành công do: Khách hàng xác thực thông tin thẻ/tài khoản không đúng quá 3 lần",
+    //         "11" => "Giao dịch không thành công do: Đã hết hạn chờ thanh toán. Xin quý khách vui lòng thực hiện lại giao dịch.",
+    //         "12" => "Giao dịch không thành công do: Thẻ/Tài khoản của khách hàng bị khóa.",
+    //         "13" => "Giao dịch không thành công do Quý khách nhập sai mật khẩu xác thực giao dịch (OTP). Xin quý khách vui lòng thực hiện lại giao dịch.",
+    //         "24" => "Giao dịch không thành công do: Khách hàng hủy giao dịch",
+    //         "51" => "Giao dịch không thành công do: Tài khoản của quý khách không đủ số dư để thực hiện giao dịch.",
+    //         "65" => "Giao dịch không thành công do: Tài khoản của Quý khách đã vượt quá hạn mức giao dịch trong ngày.",
+    //         "75" => "Ngân hàng thanh toán đang bảo trì.",
+    //         "79" => "Giao dịch không thành công do: KH nhập sai mật khẩu thanh toán quá số lần quy định. Xin quý khách vui lòng thực hiện lại giao dịch",
+    //         "99" => "Các lỗi khác (lỗi còn lại, không có trong danh sách mã lỗi đã liệt kê)",
+    //     ];
+
+    //     $responseCode = $_GET['vnp_ResponseCode'];
+    //     $message = $message_array[$responseCode] ?? "Không xác định";
+    //     $order_info = $_GET['vnp_OrderInfo'];
+    //     $parts = explode('-', $order_info);
+    //     $order_id = end($parts);
+
+    //     // Determine order status based on ResponseCode
+    //     $status = ($responseCode === "00") ? 'đã thanh toán' : 'chờ xử lí';
+
+    //     // Update the order status in the database
+    //     DB::table('order')->where('id', $order_id)->update([
+    //         'status' => $status,
+    //         'transaction_no' => $_GET['vnp_TransactionNo'] ?? null,
+    //         'transaction_date' => $_GET['vnp_PayDate'] ?? null,
+    //     ]);
+
+    //     // Redirect with query parameters
+    //     return redirect()->to('http://localhost:5173/payment-result?' . http_build_query([
+    //         'message' => $message,
+    //         'code' => $responseCode,
+    //         'order_id' => $order_id
+    //     ]));
+    // }
 }
-    
