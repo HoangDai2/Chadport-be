@@ -172,3 +172,5 @@ Route::get('getProductVariants/{cartItemId}', [CartController::class, 'getProduc
 Route::get('/login/google', [UserController::class, 'redirectToGoogle']);
 Route::post('/login/googlejwt', [UserController::class, 'googleLoginJWT']);
 Route::get('/login/google/callback', [UserController::class, 'handleGoogleCallback']);
+
+Route::post('/updateOrdersPrintedStatus', [OrderController::class, 'updateOrdersPrintedStatus']);
