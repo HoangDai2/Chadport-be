@@ -20,7 +20,12 @@ class Voucher extends Model
         'used_count',
     ];
 
-    public function Order() {
+    public function Order()
+    {
         return $this->hasOne(Order::class);
+    }
+    public function details()
+    {
+        return $this->hasMany(VoucherDetails::class);
     }
 }

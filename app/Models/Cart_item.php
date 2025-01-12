@@ -18,8 +18,8 @@ class Cart_item extends Model
         'quantity',
         'price',
         'checked',
-        'is_buy_now'
-        
+        'voucher_id'
+
     ];
 
     public function cart()
@@ -38,5 +38,13 @@ class Cart_item extends Model
     public function productItem()
     {
         return $this->belongsTo(ProductItems::class, 'product_item_id', 'id');
+    }
+    public function voucher()
+    {
+        return $this->belongsTo(Voucher::class, 'voucher_id', 'id');
+    }
+    public function cartItems()
+    {
+        return $this->hasMany(Cart_item::class, 'voucher_id', 'id');
     }
 }

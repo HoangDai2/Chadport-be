@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\SizeController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\VariantController;
 use App\Http\Controllers\Api\VoucherController;
+use App\Http\Controllers\Api\VoucherController_v2;
 use App\Http\Controllers\Api\PaymentController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -143,6 +144,21 @@ Route::resource('brand', BrandController::class);
 //Voucher route
 Route::resource('voucher', VoucherController::class);
 
+// start voucher hưng
+Route::post('/add-voucher-to-user', [VoucherController_v2::class, 'assignToUser']);
+Route::get('/get-vouchers-user/{id}', [VoucherController_v2::class, 'getUserVouchers']);
+Route::get('/get-vouchers-user-client', [VoucherController_v2::class, 'getUserVouchersUser']);
+Route::post('/gan-nhieu-voucher-to-user', [VoucherController_v2::class, 'assignToUsers']);
+Route::post('/applyVoucher', [VoucherController_v2::class, 'applyVoucherToCart']);
+
+// CRUD Voucher
+Route::post('/vouchers', [VoucherController_v2::class, 'create']);
+Route::get('/vouchers', [VoucherController_v2::class, 'index']);
+Route::put('/vouchers/{id}', [VoucherController_v2::class, 'update']);
+Route::get('/vouchers/{id}', [VoucherController_v2::class, 'show']);
+Route::delete('/vouchers', [VoucherController_v2::class, 'delete']);
+// // Gán voucher cho user
+// end voucher hưng
 
 
 // Momo payment
@@ -162,6 +178,7 @@ Route::get('/return_paymentVnPay', [PaymentController::class, 'returnPaymentVnPa
 Route::post('/orders/bill/status', [OrderController::class, 'editBillStatus']);
 Route::get('/all-ordersAdmin', [OrderController::class, 'getAllOrdersAdmin']);
 Route::get('/all-ordersAdmin/{id}', [OrderController::class, 'getOrderById']);
+Route::post('/updateOrdersPrintedStatus', [OrderController::class, 'updateOrdersPrintedStatus']);
 Route::get('/user-status', [OrderController::class, 'getOrdersByUserAndStatus']);
 
 Route::get('top-selling-products-by-month/{year}/{month}', [OrderController::class, 'getTopSellingProductsByMonth']);
