@@ -154,6 +154,7 @@ Route::post('/applyVoucher', [VoucherController_v2::class, 'applyVoucherToCart']
 // CRUD Voucher
 Route::post('/vouchers', [VoucherController_v2::class, 'create']);
 Route::get('/vouchers', [VoucherController_v2::class, 'index']);
+Route::get('client/vouchers', [VoucherController_v2::class, 'clientVouchers']);
 Route::put('/vouchers/{id}', [VoucherController_v2::class, 'update']);
 Route::get('/vouchers/{id}', [VoucherController_v2::class, 'show']);
 Route::delete('/vouchers', [VoucherController_v2::class, 'delete']);

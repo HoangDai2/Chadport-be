@@ -52,8 +52,6 @@ class VoucherController_v2 extends Controller
         return response()->json(['message' => 'Voucher assigned to user successfully'], 201);
     }
 
-
-
     public function getUserVouchers($userId)
     {
         // Lấy danh sách voucher của user
@@ -131,8 +129,6 @@ class VoucherController_v2 extends Controller
         ], 201);
     }
 
-
-
     // crud start
     public function index()
     {
@@ -204,6 +200,15 @@ class VoucherController_v2 extends Controller
 
         return response()->json(['error' => 'No vouchers were deleted.'], 400);
     }
+
+    // get voucher bên client chỉ hiện voucher chưa hết hạn
+    public function clientVouchers()
+    {
+        // Chỉ trả về các voucher chưa hết hạn
+        $vouchers = Voucher::where('expires_at', '>', now())->get();
+        return response()->json($vouchers);
+    }
+    
 
     // end  crud
 
