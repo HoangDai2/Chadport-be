@@ -122,6 +122,7 @@ class VoucherController_v2 extends Controller
             'expires_at' => $request->expires_at,
             'usage_limit' => $request->usage_limit,
             'used_count' => 0, // Ban đầu số lần sử dụng là 0
+            'is_client' => "an",
         ]);
 
         // Trả về phản hồi thành công
@@ -163,6 +164,22 @@ class VoucherController_v2 extends Controller
         $voucher->update($request->all());
         return response()->json(['message' => 'Voucher updated successfully', 'voucher' => $voucher]);
     }
+    public function updateIsClient($id)
+    {
+        // Tìm voucher theo ID, nếu không tìm thấy sẽ trả lỗi 404
+        $voucher = Voucher::findOrFail($id);
+
+        // Cập nhật giá trị is_client thành 'hiện'
+        $voucher->is_client = 'hien'; // Đặt giá trị mới cho is_client
+        $voucher->save(); // Lưu lại thay đổi vào cơ sở dữ liệu
+
+        // Trả về phản hồi JSON
+        return response()->json([
+            'message' => 'Voucher updated successfully',
+            'voucher' => $voucher
+        ], 200);
+    }
+
     public function delete(Request $request)
     {
         // Kiểm tra dữ liệu đầu vào
@@ -349,5 +366,65 @@ class VoucherController_v2 extends Controller
             'cart_items' => $cartItems,
             'total_discounted_amount' => $totalDiscountedAmount,
         ]);
+    }
+    public function claimVoucher(Request $request)
+    {
+        $user = auth()->user();
+
+        // Kiểm tra nếu người dùng chưa đăng nhập
+        if (!$user) {
+            return response()->json(['message' => 'Bạn cần đăng nhập để nhận voucher.'], 401);
+        }
+
+        $request->validate([
+            'voucher_id' => 'required|exists:vouchers,id',
+        ]);
+
+        // Lấy thông tin voucher
+        $voucher = Voucher::where('id', $request->voucher_id)
+            ->where('is_default', 0) // Chỉ cho phép claim voucher không phải mặc định
+            ->first();
+
+        if (!$voucher) {
+            return response()->json([
+                'message' => 'Voucher này không hợp lệ hoặc không thể được claim.',
+            ], 400);
+        }
+
+        // Kiểm tra nếu voucher đã hết hạn
+        if (now()->greaterThan($voucher->expires_at)) {
+            return response()->json([
+                'message' => 'Voucher này đã hết hạn.',
+            ], 400);
+        }
+
+        // Kiểm tra nếu voucher đã đạt giới hạn sử dụng
+        if ($voucher->usage_limit <= $voucher->used_count) {
+            return response()->json([
+                'message' => 'Voucher này đã đạt giới hạn sử dụng và không thể nhận thêm.',
+            ], 400);
+        }
+
+        // Kiểm tra nếu user đã nhận voucher này trước đó
+        $existingClaim = VoucherDetails::where('user_id', $user->id)
+            ->where('voucher_id', $voucher->id)
+            ->exists();
+
+        if ($existingClaim) {
+            return response()->json([
+                'message' => 'Bạn đã nhận voucher này trước đó.',
+            ], 400);
+        }
+
+        // Gán voucher cho user
+        VoucherDetails::create([
+            'user_id' => $user->id,
+            'voucher_id' => $voucher->id,
+        ]);
+
+        return response()->json([
+            'message' => 'Bạn đã nhận voucher thành công.',
+            'voucher' => $voucher,
+        ], 201);
     }
 }

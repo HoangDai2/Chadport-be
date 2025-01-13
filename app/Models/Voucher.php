@@ -18,6 +18,7 @@ class Voucher extends Model
         'expires_at',
         'usage_limit',
         'used_count',
+        'is_default',
     ];
 
     public function Order()
