@@ -326,27 +326,6 @@ class VoucherController_v2 extends Controller
             return response()->json(['error' => 'Voucher không hợp lệ hoặc đã hết hạn.'], 400);
         }
 
-        // Kiểm tra nếu tài khoản không có voucher trong bảng `voucher_details`
-        $hasVoucher = DB::table('voucher_details')
-            ->where('voucher_id', $voucher->id)
-            ->where('user_id', $user->id)
-            ->exists();
-
-        if (!$hasVoucher) {
-            return response()->json(['error' => 'Tài khoản của bạn không có mã giảm giá này.'], 403);
-        }
-
-        // Kiểm tra nếu voucher này đã được áp dụng trước đó
-        $isVoucherUsed = DB::table('voucher_details')
-            ->where('voucher_id', $voucher->id)
-            ->where('user_id', $user->id)
-            ->whereNotNull('used_at') // Kiểm tra nếu đã được sử dụng
-            ->exists();
-
-        if ($isVoucherUsed) {
-            return response()->json(['error' => 'Bạn đã sử dụng mã giảm giá này trước đó.'], 403);
-        }
-
         // Lấy các sản phẩm trong giỏ hàng có trạng thái checked = 1
         $cartItems = Cart_item::where('cart_id', $request->cart_id)
             ->where('checked', 1)
@@ -356,27 +335,26 @@ class VoucherController_v2 extends Controller
             return response()->json(['error' => 'Không có sản phẩm nào được chọn để áp dụng mã giảm giá.'], 400);
         }
 
-        // Tính toán giá sau khi áp dụng giảm giá
-        $totalDiscountedAmount = 0; // Tổng tiền sau giảm giá
-        $originalTotal = 0; // Tổng tiền trước giảm giá
+        // Tính tổng tiền trước giảm giá (originalTotal)
+        $originalTotal = $cartItems->sum(function ($item) {
+            return $item->price * $item->quantity;
+        });
 
+        // Tính tổng giảm giá
+        $discountValue = 0;
+        if ($voucher->discount_type === 'fixed') {
+            $discountValue = min($voucher->discount_value, $originalTotal);
+        } elseif ($voucher->discount_type === 'percentage') {
+            $discountValue = $originalTotal * ($voucher->discount_value / 100);
+        }
+
+        // Tính tổng tiền sau giảm giá
+        $totalAfterDiscount = max(0, $originalTotal - $discountValue);
+
+        // Cập nhật voucher_id cho các sản phẩm trong giỏ hàng
         foreach ($cartItems as $item) {
-            $originalPrice = $item->price * $item->quantity; // Giá gốc
-            $originalTotal += $originalPrice;
-
-            if ($voucher->discount_type === 'fixed') {
-                $discount = min($voucher->discount_value, $originalPrice);
-            } elseif ($voucher->discount_type === 'percentage') {
-                $discount = $originalPrice * ($voucher->discount_value / 100);
-            } else {
-                $discount = 0;
-            }
-
-            $item->voucher_id = $voucher->id; // Gắn voucher vào sản phẩm
+            $item->voucher_id = $voucher->id;
             $item->save();
-
-            $discountedPrice = max(0, $originalPrice - $discount); // Giá sau giảm không nhỏ hơn 0
-            $totalDiscountedAmount += $discountedPrice;
         }
 
         // Phản hồi thông tin
@@ -384,12 +362,13 @@ class VoucherController_v2 extends Controller
             'message' => 'Voucher đã được áp dụng thành công.',
             'voucher_id' => $voucher->id,
             'discount_value' => $voucher->discount_value,
-            'discount_type' => $voucher->discount_type, // Loại giảm giá
+            'discount_type' => $voucher->discount_type,
             'cart_items' => $cartItems,
-            'original_total' => $originalTotal, // Tổng tiền gốc
-            'total_discounted_amount' => $totalDiscountedAmount, // Tổng tiền sau giảm giá
+            'original_total' => $originalTotal, // Tổng tiền trước giảm giá
+            'total_discounted_amount' => $totalAfterDiscount // Tổng tiền sau giảm giá
         ]);
     }
+
 
     public function claimVoucher(Request $request)
     {

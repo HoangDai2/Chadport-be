@@ -201,7 +201,7 @@ class AuthController extends Controller
                 }
             } else {
                 return response()->json([
-                    'error' => 'Không thể cập nhật role_id nhỏ hơn 1'
+                    'error' => 'Bạn không có quyền đổi thành Super Admin'
                 ], 400);
             }
             
@@ -242,3 +242,4 @@ class AuthController extends Controller
 
     }
 }
+

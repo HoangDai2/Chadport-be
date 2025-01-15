@@ -229,7 +229,7 @@ class CartController extends Controller
             return response()->json(['message' => 'Không có sản phẩm nào được chọn'], 404);
         }
 
-        // Tính tổng tiền trước giảm giá
+        // Tính tổng tiền từ giá đã lưu trong DB
         $totalAmount = $cartItems->sum(function ($item) {
             return $item->price * $item->quantity;
         });
@@ -240,7 +240,7 @@ class CartController extends Controller
             if ($item->voucher_id) {
                 $voucher = Voucher::find($item->voucher_id);
                 if ($voucher) {
-                    $itemTotal = $item->price * $item->quantity;
+                    $itemTotal = $item->total_price;
                     if ($voucher->discount_type === 'fixed') {
                         $discountValue += min($voucher->discount_value, $itemTotal); // Không giảm quá giá trị sản phẩm
                     } elseif ($voucher->discount_type === 'percentage') {
@@ -262,7 +262,7 @@ class CartController extends Controller
                 'cart_id' => $item->cart_id,
                 'product_item_id' => $item->product_item_id,
                 'quantity' => $item->quantity,
-                'total_price' => $item->price * $item->quantity,
+                'total_price' => $item->total_price, // Sử dụng giá đã tính sẵn
                 'product_name' => $productDetails->name,  // Tên sản phẩm
                 'product_price' => $productDetails->price,  // Giá gốc
                 'product_sale_price' => $productDetails->price_sale,  // Giá giảm
@@ -280,7 +280,6 @@ class CartController extends Controller
             'total_after_discount' => $totalAfterDiscount // Tổng tiền sau giảm giá
         ]);
     }
-
 
     // public function Getcheckout(Request $request)
     // {
