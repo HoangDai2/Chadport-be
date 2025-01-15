@@ -64,7 +64,9 @@ class UserController extends Controller
                 'discount_value' => 50000, // Giá trị giảm: 50,000
                 'expires_at' => now()->addMonth(), // Hạn sử dụng: 1 tháng
                 'usage_limit' => 1, // Chỉ sử dụng được 1 lần
-                'used_count' => 0 // Chưa được sử dụng
+                'used_count' => 0, // Chưa được sử dụng
+                'is_default' => 1,
+
             ];
             $voucher = Voucher::create($voucherData);
 

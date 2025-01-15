@@ -150,12 +150,14 @@ Route::get('/get-vouchers-user/{id}', [VoucherController_v2::class, 'getUserVouc
 Route::get('/get-vouchers-user-client', [VoucherController_v2::class, 'getUserVouchersUser']);
 Route::post('/gan-nhieu-voucher-to-user', [VoucherController_v2::class, 'assignToUsers']);
 Route::post('/applyVoucher', [VoucherController_v2::class, 'applyVoucherToCart']);
+Route::post('/claimVoucher', [VoucherController_v2::class, 'claimVoucher']);
 
 // CRUD Voucher
 Route::post('/vouchers', [VoucherController_v2::class, 'create']);
 Route::get('/vouchers', [VoucherController_v2::class, 'index']);
 Route::get('client/vouchers', [VoucherController_v2::class, 'clientVouchers']);
 Route::put('/vouchers/{id}', [VoucherController_v2::class, 'update']);
+Route::put('/vouchers-is-client/{id}', [VoucherController_v2::class, 'updateIsClient']);
 Route::get('/vouchers/{id}', [VoucherController_v2::class, 'show']);
 Route::delete('/vouchers', [VoucherController_v2::class, 'delete']);
 // // Gán voucher cho user
@@ -192,3 +194,5 @@ Route::post('/login/googlejwt', [UserController::class, 'googleLoginJWT']);
 Route::get('/login/google/callback', [UserController::class, 'handleGoogleCallback']);
 
 Route::post('/updateOrdersPrintedStatus', [OrderController::class, 'updateOrdersPrintedStatus']);
+
+Route::get('/products/rating', [ProductControllers::class, 'showProductsByRating']);

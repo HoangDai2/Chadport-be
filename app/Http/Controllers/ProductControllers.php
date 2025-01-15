@@ -10,6 +10,7 @@ use App\Models\ProductItems;
 use App\Models\ProductVariant;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 
@@ -487,4 +488,36 @@ class ProductControllers extends Controller
             ], 404); // Trả về lỗi 404 nếu không tìm thấy sản phẩm
         }
     }
+    
+    public function showProductsByRating(Request $request)
+    {
+        // Số lượng sản phẩm hiển thị trên mỗi trang
+        $perPage = 10;
+    
+        // Truy vấn để lấy sản phẩm với rating trung bình từ 4-5 sao
+        $products = DB::table('products')
+            ->select(
+                'products.id',
+                'products.name',
+                'products.price',
+                'products.image_product',
+                DB::raw('AVG(comment.rating) as average_rating')
+            )
+            ->join('product_items', 'products.id', '=', 'product_items.product_id')
+            ->join('comment', 'product_items.id', '=', 'comment.product_item_id')
+            ->groupBy('products.id', 'products.name', 'products.price' ,'products.image_product') // Thêm các cột khác nếu cần
+            ->having(DB::raw('AVG(comment.rating)'), '>=', 4) // Lọc sản phẩm có rating từ 4
+            ->having(DB::raw('AVG(comment.rating)'), '<=', 5) // Lọc sản phẩm có rating <= 5
+            ->orderByDesc('average_rating')
+            ->paginate($perPage);
+    
+        // Trả về danh sách sản phẩm và thông tin phân trang
+        return response()->json([
+            'data' => $products->items(),
+            'current_page' => $products->currentPage(),
+            'last_page' => $products->lastPage(),
+            'total' => $products->total(),
+        ], 200);
+    }
+
 }
