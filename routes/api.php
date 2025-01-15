@@ -19,17 +19,20 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProductControllers;
 use App\Http\Controllers\UserController as ControllersUserController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\NewAddressController;
+
 
 
 // Group admin routes
 Route::group(['prefix' => 'admin'], function () {
     Route::post('/login', [AuthController::class, 'login']);
-    Route::group(['middleware' => ['auth:api', 'check.user.role']], function () { // role_id 1 2 3 
+    Route::group(['middleware' => ['auth:api', 'check.user.role']], function () { // role_id 1 2 
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::post('/refresh', [AuthController::class, 'refresh']);
         Route::post('/register', [AuthController::class, 'register']);
-
+        Route::post('/changeUserRole', [AuthController::class, 'changeUserRole']);
+        Route::post('/activateAccount', [AuthController::class, 'activateAccount']);
 
         Route::group(['prefix' => 'product'], function () {
             Route::get('/index', [ProductControllerAD::class, 'index']);
@@ -42,6 +45,10 @@ Route::group(['prefix' => 'admin'], function () {
             Route::post('/status', [OrderController::class, 'edit']);
             Route::get('/delete', [OrderController::class, 'delete']);
         });
+
+        Route::get('/index/role',[RoleController::class,'index']);
+        Route::post('/store/role',[RoleController::class,'store']);
+        Route::put('/update/role/{id}',[RoleController::class,'update']);
     });
 });
 Route::get('/list_refund', [OrderController::class, 'listRefund']);

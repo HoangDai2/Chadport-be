@@ -12,7 +12,7 @@ class CheckUserRole
     {
         if (Auth::check()) {
             $user = Auth::user();
-            $adminRoles = [1, 2, 3];
+            $adminRoles = [1, 2];
             if (in_array($user->role_id, $adminRoles)) {
                 return $next($request);
             } else {

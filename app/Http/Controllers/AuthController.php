@@ -19,7 +19,7 @@ class AuthController extends Controller
     public function __construct() {
         $this->middleware('auth:api', ['except' => ['login']]);
     }
-
+// chỉ supper Admin (role_id:1) thì dùng đc hàm này
     public function register(RegisterRequest $request)
     {
         try {
@@ -27,8 +27,9 @@ class AuthController extends Controller
                 'email' => $request->input('email'),
                 'password' => bcrypt($request->input('password')),
                 'role_id' => $request->input('role_id'),
-                'status' =>'inactive'
+                'status' =>'active'
             ];
+
             $user = User::create($userData);
 
             return response()->json([
@@ -128,5 +129,68 @@ class AuthController extends Controller
             ], 500);
         }
     }
-    
+
+
+    // Hàm thay đổi role_id của user dành cho supper Admin
+    public function changeUserRole(Request $request) {
+        $user = JWTAuth::parseToken()->authenticate();
+        if ($user->role_id == 1) {
+            $userId = $request->input('id');
+            $newRoleId = $request->input('role_id');
+            if ($newRoleId > 1) {
+                $userToUpdate = User::find($userId);
+                if($userToUpdate) {
+                $userToUpdate->role_id = $newRoleId;
+                $userToUpdate->save();
+                return response()->json([
+                    'message' => 'Cập nhât role_id thành công',
+                    'user' => $userToUpdate
+                ], 200);
+                } else {
+                return response()->json([
+                    'error' => 'Không có người dùng với id này'
+                ], 404);
+                }
+            } else {
+                return response()->json([
+                    'error' => 'Không thể cập nhật role_id nhỏ hơn 1'
+                ], 400);
+            }
+            
+        } else {
+            return response()->json([
+                'error' => 'Bạn không có quyền truy cập'
+            ], 403);
+        }
+    }
+
+    public function activateAccount(Request $request) {
+        $user = JWTAuth::parseToken()->authenticate();
+        $userId = $request->input('id');
+        $newStatus = $request->input('status');
+        $userToUpdate = User::find($userId);
+        if(!$userToUpdate){
+            return response()->json([
+                'error' => 'Không có người dùng với id này'
+            ], 404);
+        }
+        if ($user->role_id == 1) {
+            
+            if ($userToUpdate->role_id != 1) {
+                $userToUpdate->status = $newStatus;
+                $userToUpdate->save();
+                return response()->json(['message' => 'Cập nhật trạng thái user thành công!!'], 200);
+            } else {
+                return response()->json(['error' => 'Quản trị viên không thể thay đổi trạng thái của quản trị viên khác !!'], 403);
+            }
+        } elseif ($user->role_id == 0) {
+            
+            $userToUpdate->status = $newStatus;
+            $userToUpdate->save();
+            return response()->json(['message' => 'Cập nhật trạng thái user thành công!!'], 200);
+        } else {
+            return response()->json(['error' => 'Không được phép'], 403);
+        }
+
+    }
 }
