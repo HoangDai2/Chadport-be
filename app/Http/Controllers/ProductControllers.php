@@ -472,7 +472,7 @@ class ProductControllers extends Controller
         if ($product) {
             // Tăng search_count lên 1
             $product->increment('search_count');
-            $product->search_count = $product->search_count + 1;
+            // $product->search_count = $product->search_count + 1;
             // Lưu thời gian hiện tại vào cột search_count_date
             $product->search_count_date = now();  // Lấy thời gian hiện tại mà không cần Carbon
             $product->save();  // Lưu thông tin đã cập nhật

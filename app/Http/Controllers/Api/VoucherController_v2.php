@@ -48,7 +48,7 @@ class VoucherController_v2 extends Controller
             'user_id' => $request->user_id,
             'voucher_id' => $request->voucher_id,
         ]);
-
+        $voucher->update(['is_default' => 2]);
         return response()->json(['message' => 'Voucher assigned to user successfully'], 201);
     }
 
@@ -385,7 +385,7 @@ class VoucherController_v2 extends Controller
 
         // Lấy thông tin voucher
         $voucher = Voucher::where('id', $request->voucher_id)
-            ->where('is_default', 0) // Chỉ cho phép claim voucher không phải mặc định
+            ->where('is_default', 3) // Chỉ cho phép claim voucher không phải mặc định
             ->first();
 
         if (!$voucher) {
@@ -430,4 +430,52 @@ class VoucherController_v2 extends Controller
             'voucher' => $voucher,
         ], 201);
     }
+
+    public function updateRoleClient3(Request $request)
+{
+    // Validate dữ liệu từ request
+    $validatedData = $request->validate([
+        'voucher_id' => 'required|exists:vouchers,id', // Xác nhận voucher tồn tại
+        'is_default' => 'required|in:0,3', // Chỉ cho phép giá trị 0 hoặc 3
+    ]);
+
+    try {
+        // Lấy thông tin voucher từ DB
+        $voucher = Voucher::findOrFail($validatedData['voucher_id']);
+
+        // Kiểm tra ngày hết hạn của voucher
+        $today = now(); // Lấy thời gian hiện tại
+        if ($voucher->expires_at < $today) {
+            // Nếu voucher đã hết hạn, tự động cập nhật is_default về 0
+            $voucher->update(['is_default' => 0]);
+
+            return response()->json([
+                'message' => 'Voucher expired, is_default updated to 0',
+                'voucher_id' => $voucher->id,
+                'is_default' => $voucher->is_default,
+            ], 200);
+        }
+
+        // Nếu chưa hết hạn, cập nhật trạng thái theo giá trị từ FE
+        $voucher->update(['is_default' => $validatedData['is_default']]);
+
+        return response()->json([
+            'message' => 'Voucher updated successfully',
+            'voucher_id' => $voucher->id,
+            'is_default' => $voucher->is_default,
+        ], 200);
+    } catch (\Exception $e) {
+        // Bắt lỗi và trả về thông báo lỗi
+        // \Log::error("Error updating voucher: " . $e->getMessage());
+
+        return response()->json([
+            'message' => 'Error updating voucher',
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+
+    
+
 }

@@ -158,7 +158,7 @@ Route::get('/get-vouchers-user-client', [VoucherController_v2::class, 'getUserVo
 Route::post('/gan-nhieu-voucher-to-user', [VoucherController_v2::class, 'assignToUsers']);
 Route::post('/applyVoucher', [VoucherController_v2::class, 'applyVoucherToCart']);
 Route::post('/claimVoucher', [VoucherController_v2::class, 'claimVoucher']);
-
+Route::put('/updateRoleClient3', [VoucherController_v2::class, 'updateRoleClient3']);
 // CRUD Voucher
 Route::post('/vouchers', [VoucherController_v2::class, 'create']);
 Route::get('/vouchers', [VoucherController_v2::class, 'index']);
